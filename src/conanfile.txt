@@ -1,0 +1,7 @@
+[requires]
+gsl/2.7
+cglm/0.9.1
+
+[generators]
+PkgConfigDeps
+MesonToolchain

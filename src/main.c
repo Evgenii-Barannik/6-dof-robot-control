@@ -3,8 +3,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-#include <assert.h>
 #include <gsl/gsl_blas.h>
+
+// Ensure assertions are not disabled
+#undef NDEBUG
+#include <assert.h>
 
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
 const int NUM_OF_HEXAGON_VERTICES = 6;
@@ -46,20 +49,18 @@ void print_TableCoordinates(struct TableCoordinates table) {
 }
 
 void print_points(gsl_vector** points, int num_points) {
-    if (num_points == NUM_OF_HEXAGON_VERTICES || num_points == NUM_OF_HEXAGON_VERTICES + 1) {
-            for(int i = 0; i < num_points; i++) {
-                printf("%d: (%f, %f, %f)", i,
-                    gsl_vector_get(points[i], 0),
-                    gsl_vector_get(points[i], 1),
-                    gsl_vector_get(points[i], 2));
+    assert(num_points == NUM_OF_HEXAGON_VERTICES || num_points == NUM_OF_HEXAGON_VERTICES + 1);
 
-                if (i==NUM_OF_HEXAGON_VERTICES) {
-                    printf(" <-- centroid");
-                }
-                printf("\n");
-            }
-    } else {
-        printf("Error, number of points is incorrect");
+    for(int i = 0; i < num_points; i++) {
+        printf("%d: (%f, %f, %f)", i,
+            gsl_vector_get(points[i], 0),
+            gsl_vector_get(points[i], 1),
+            gsl_vector_get(points[i], 2));
+
+        if (i == NUM_OF_HEXAGON_VERTICES) {
+            printf(" <-- centroid");
+        }
+        printf("\n");
     }
 }
 
@@ -257,7 +258,7 @@ int main(void) {
     }
 
     printf("\nInitial (x, y, z) coordinates of table points in cm, with vertices and centroid:\n");
-    print_points(initial_table_points, NUM_OF_HEXAGON_VERTICES+1);
+    print_points(initial_table_points, NUM_OF_HEXAGON_VERTICES+2);
 
     printf("\nTargeted (x, y, z) coordinates of table points in cm, with vertices and centroid:\n");
     print_points(transformed_table_points, NUM_OF_HEXAGON_VERTICES+1);

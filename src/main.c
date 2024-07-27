@@ -5,13 +5,19 @@
 #include <math.h>
 #include <gsl/gsl_blas.h>
 
-// Ensure assertions are not disabled
+// Ensures that assertions are not disabled
 #undef NDEBUG
 #include <assert.h>
 
+
+/// CONSTANTS THAT SHOULD NOT BE CHANGED
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
 const int NUM_OF_HEXAGON_VERTICES = 6;
+const int NUM_OF_SLIDERS = 6;
+///
 
+
+/// CONSTANTS THAT CAN BE CHANGED
 const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertex pairs of the hexagonal table in radians. A regular hexagon will have 60 deg.
 const double BASE_RADIUS = 7.0; // Radius of the hexagonal base in cm.
@@ -19,21 +25,23 @@ const double BASE_ANGLE = DEGREES_TO_RADIANS * 15; // Angle between vertex pairs
 const double MAX_POSSIBLE_HEIGHT = 15.0; // Highest possible position for sliders in cm.
 const double MIN_POSSIBLE_HEIGHT = 0; // Lowest possible position for sliders in cm.
 const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
+///
+
 
 struct TableCoordinates { // Full description of the table position.
-    double x, y, z; // Coordinates of the table center.
-    double phi, theta, psi; // Euler angles for the table.
+    double x, y, z; // Coordinates of the table center in cm.
+    double phi, theta, psi; // Euler angles for the table in radians.
 };
 
-// Array of pointers to NULL (if position for any slider is not possible)
-// or pointers to slider positions (if all slider positions are possible).
+// Array of pointers to NULL (if slider coordinates were not found)
+// or pointers to slider coordinates (if slider cooridnates were found).
 typedef struct {
-    gsl_vector* positions[NUM_OF_HEXAGON_VERTICES];
-} OptionSliderPositions;
+    gsl_vector* coordinates[NUM_OF_HEXAGON_VERTICES];
+} OptionSliderCoordinates;
 
-bool all_not_NULL(const OptionSliderPositions* options) {
+bool all_not_NULL(const OptionSliderCoordinates* options) {
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; ++i) {
-        gsl_vector* vec_p = options->positions[i];
+        gsl_vector* vec_p = options->coordinates[i];
         if (vec_p == NULL) {
             return false;
         }
@@ -41,21 +49,21 @@ bool all_not_NULL(const OptionSliderPositions* options) {
     return true;
 }
 
-void print_TableCoordinates(struct TableCoordinates table) {
+void print_targeted_table_coordinates(struct TableCoordinates table) {
     printf("\n");
     printf("Targeted table coordinates: \n");
     printf("Centroid (x, y, z) coordinates in cm:      (%f, %f, %f)\n", table.x, table.y, table.z);
     printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
 }
 
-void print_points(gsl_vector** points, int num_points) {
-    assert(num_points == NUM_OF_HEXAGON_VERTICES || num_points == NUM_OF_HEXAGON_VERTICES + 1);
+void print_table_vertices_and_centroid(gsl_vector** vectors, int num_of_vectors_to_print) {
+    assert(num_of_vectors_to_print == NUM_OF_HEXAGON_VERTICES + 1);
 
-    for(int i = 0; i < num_points; i++) {
+    for(int i = 0; i < num_of_vectors_to_print; i++) {
         printf("%d: (%f, %f, %f)", i,
-            gsl_vector_get(points[i], 0),
-            gsl_vector_get(points[i], 1),
-            gsl_vector_get(points[i], 2));
+            gsl_vector_get(vectors[i], 0),
+            gsl_vector_get(vectors[i], 1),
+            gsl_vector_get(vectors[i], 2));
 
         if (i == NUM_OF_HEXAGON_VERTICES) {
             printf(" <-- centroid");
@@ -64,27 +72,40 @@ void print_points(gsl_vector** points, int num_points) {
     }
 }
 
+void print_lowest_possible_slider_coordinates(gsl_vector** vectors, int num_of_vectors_to_print) {
+    assert(num_of_vectors_to_print == NUM_OF_SLIDERS);
 
-void print_slider_positions(const OptionSliderPositions option) {
-    bool all_positions_found = all_not_NULL(&option);
+    for(int i = 0; i < num_of_vectors_to_print; i++) {
+        printf("Slider %d: (%f, %f, %f)\n", i,
+            gsl_vector_get(vectors[i], 0),
+            gsl_vector_get(vectors[i], 1),
+            gsl_vector_get(vectors[i], 2));
+    }
+}
 
-    if (all_positions_found) {
-        printf("\nTargeted table coordinates can be realized using these slider positions:\n");
+
+void print_transformed_slider_coordinates(const OptionSliderCoordinates option) {
+    bool slider_coordinates_found = all_not_NULL(&option);
+
+    if (slider_coordinates_found) {
+        printf("\n=== Solution found! ===\n");
+        printf("Targeted table coordinates can be realized using these slider coordinates (x, y, z) in cm:\n");
         for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-            printf("%d: (%f, %f, %f)\n", i,
-                gsl_vector_get(option.positions[i], 0),
-                gsl_vector_get(option.positions[i], 1),
-                gsl_vector_get(option.positions[i], 2));
+            printf("Slider %d: (%f, %f, %f)\n", i,
+                gsl_vector_get(option.coordinates[i], 0),
+                gsl_vector_get(option.coordinates[i], 1),
+                gsl_vector_get(option.coordinates[i], 2));
         }
     } else {
-        printf("\nFailed to find slider positions that can realize targeted table coordinates.\n");
-        printf("Some SliderPositions are pointing to NULL:\n");
+        printf("\n=== Solution NOT found! ===\n");
+        printf("Failed to find slider coordinates that can realize targeted table coordinates.\n");
+        printf("Targeted table coordinates deemed infeasible. Slider diagnostics:\n");
         for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-            bool if_current_position_found = (option.positions[i] != NULL);
-            if (if_current_position_found) {
-                printf("%d: ok \n", i);
+            bool slider_is_ok = (option.coordinates[i] != NULL);
+            if (slider_is_ok) {
+                printf("Slider %d: ok \n", i);
             } else {
-                printf("%d: NULL\n", i);
+                printf("Slider %d: ERROR\n", i);
             }
         }
     }
@@ -92,7 +113,7 @@ void print_slider_positions(const OptionSliderPositions option) {
 }
 
 void populate_transformation_matrix(
-    gsl_matrix * transformation_matrix,
+    gsl_matrix* transformation_matrix,
     const struct TableCoordinates c) {
 
     gsl_matrix_set(transformation_matrix, 0, 0, cos(c.psi) * cos(c.theta));
@@ -116,111 +137,113 @@ void populate_transformation_matrix(
     gsl_matrix_set(transformation_matrix, 3, 3, 1.0);
 }
 
+// Used to populate both table and base coordinates.
+// Base coordinates are coordinates of sliders at their lowest possible position at rest.
 void populate_hexagon(
-    gsl_vector **points,
+    gsl_vector** coordinates,
     const double radius,
     const double angle_in_radians) {
 
-    gsl_vector_set(points[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[0], 2, 0.0);
+    gsl_vector_set(coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[0], 2, 0.0);
 
-    gsl_vector_set(points[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[1], 2, 0.0);
+    gsl_vector_set(coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[1], 2, 0.0);
 
-    gsl_vector_set(points[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[2], 2, 0.0);
+    gsl_vector_set(coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[2], 2, 0.0);
 
-    gsl_vector_set(points[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[3], 2, 0.0);
+    gsl_vector_set(coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[3], 2, 0.0);
 
-    gsl_vector_set(points[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-    gsl_vector_set(points[4], 2, 0.0);
+    gsl_vector_set(coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[4], 2, 0.0);
 
-    gsl_vector_set(points[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-    gsl_vector_set(points[5], 2, 0.0);
+    gsl_vector_set(coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+    gsl_vector_set(coordinates[5], 2, 0.0);
 }
 
-void transform_point(
-    gsl_vector *for_transformed_point_in_3D,
-    const gsl_matrix *transformation_matrix,
-    const gsl_vector *initial_point_in_3D) {
+void populate_transformed_coordinates(
+    gsl_vector* place_for_transformed_coordinates_in_3D,
+    const gsl_matrix* transformation_matrix,
+    const gsl_vector* initial_coordinates_in_3D) {
 
     // Uplifting to 4D
-    gsl_vector *initial_point_in_4D = gsl_vector_alloc(4);
-    gsl_vector_set(initial_point_in_4D, 0, gsl_vector_get(initial_point_in_3D, 0));
-    gsl_vector_set(initial_point_in_4D, 1, gsl_vector_get(initial_point_in_3D, 1));
-    gsl_vector_set(initial_point_in_4D, 2, gsl_vector_get(initial_point_in_3D, 2));
-    gsl_vector_set(initial_point_in_4D, 3, 1.0);
+    gsl_vector* initial_coordinates_in_4D = gsl_vector_alloc(4);
+    gsl_vector_set(initial_coordinates_in_4D, 0, gsl_vector_get(initial_coordinates_in_3D, 0));
+    gsl_vector_set(initial_coordinates_in_4D, 1, gsl_vector_get(initial_coordinates_in_3D, 1));
+    gsl_vector_set(initial_coordinates_in_4D, 2, gsl_vector_get(initial_coordinates_in_3D, 2));
+    gsl_vector_set(initial_coordinates_in_4D, 3, 1.0);
 
     // Linear transformation in 4D
-    gsl_vector *transformed_point_in_4D = gsl_vector_alloc(4);
-    gsl_blas_dgemv(CblasNoTrans, 1.0, transformation_matrix, initial_point_in_4D, 0.0, transformed_point_in_4D);
+    gsl_vector* transformed_coordinates_in_4D = gsl_vector_alloc(4);
+    gsl_blas_dgemv(CblasNoTrans, 1.0, transformation_matrix, initial_coordinates_in_4D, 0.0, transformed_coordinates_in_4D);
 
     // Projection back to 3D
-    gsl_vector_set(for_transformed_point_in_3D, 0, gsl_vector_get(transformed_point_in_4D, 0));
-    gsl_vector_set(for_transformed_point_in_3D, 1, gsl_vector_get(transformed_point_in_4D, 1));
-    gsl_vector_set(for_transformed_point_in_3D, 2, gsl_vector_get(transformed_point_in_4D, 2));
+    gsl_vector_set(place_for_transformed_coordinates_in_3D, 0, gsl_vector_get(transformed_coordinates_in_4D, 0));
+    gsl_vector_set(place_for_transformed_coordinates_in_3D, 1, gsl_vector_get(transformed_coordinates_in_4D, 1));
+    gsl_vector_set(place_for_transformed_coordinates_in_3D, 2, gsl_vector_get(transformed_coordinates_in_4D, 2));
 
-    gsl_vector_free(initial_point_in_4D);
-    gsl_vector_free(transformed_point_in_4D);
+    gsl_vector_free(initial_coordinates_in_4D);
+    gsl_vector_free(transformed_coordinates_in_4D);
 }
 
-void populate_centroid(gsl_vector **points) {
+void populate_centroid(gsl_vector** coordinates) {
     double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
     for (int j = 0; j < NUM_OF_HEXAGON_VERTICES; j++) {
-        x_sum += gsl_vector_get(points[j], 0);
-        y_sum += gsl_vector_get(points[j], 1);
-        z_sum += gsl_vector_get(points[j], 2);
+        x_sum += gsl_vector_get(coordinates[j], 0);
+        y_sum += gsl_vector_get(coordinates[j], 1);
+        z_sum += gsl_vector_get(coordinates[j], 2);
 
     }
-    gsl_vector_set(points[NUM_OF_HEXAGON_VERTICES], 0, x_sum/NUM_OF_HEXAGON_VERTICES);
-    gsl_vector_set(points[NUM_OF_HEXAGON_VERTICES], 1, y_sum/NUM_OF_HEXAGON_VERTICES);
-    gsl_vector_set(points[NUM_OF_HEXAGON_VERTICES], 2, z_sum/NUM_OF_HEXAGON_VERTICES);
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 0, x_sum/NUM_OF_HEXAGON_VERTICES);
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 1, y_sum/NUM_OF_HEXAGON_VERTICES);
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 2, z_sum/NUM_OF_HEXAGON_VERTICES);
 }
 
-OptionSliderPositions find_slider_positions(
-    gsl_vector **table_transformed_points,
-    gsl_vector **base_points) {
+OptionSliderCoordinates find_slider_coordinates(
+    gsl_vector** table_transformed_coordinates,
+    gsl_vector** base_coordinates) {
 
-    OptionSliderPositions maybe_slider_positions;
+    OptionSliderCoordinates maybe_slider_coordinates;
 
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-        maybe_slider_positions.positions[i] = gsl_vector_alloc(3);
-        gsl_vector_memcpy(maybe_slider_positions.positions[i], base_points[i]);
+        maybe_slider_coordinates.coordinates[i] = gsl_vector_alloc(3);
+        gsl_vector_memcpy(maybe_slider_coordinates.coordinates[i], base_coordinates[i]);
 
-        double table_transformed_point_x = gsl_vector_get(table_transformed_points[i], 0);
-        double table_transformed_point_y = gsl_vector_get(table_transformed_points[i], 1);
-        double table_transformed_point_z = gsl_vector_get(table_transformed_points[i], 2);
-        double base_point_x = gsl_vector_get(base_points[i], 0);
-        double base_point_y = gsl_vector_get(base_points[i], 1);
+        double table_transformed_x = gsl_vector_get(table_transformed_coordinates[i], 0);
+        double table_transformed_y = gsl_vector_get(table_transformed_coordinates[i], 1);
+        double table_transformed_z = gsl_vector_get(table_transformed_coordinates[i], 2);
+        double base_x = gsl_vector_get(base_coordinates[i], 0);
+        double base_y = gsl_vector_get(base_coordinates[i], 1);
 
-        bool slider_inside_range = false;
-        double z_part = pow(ARM_LENGTH, 2) - pow((base_point_x - table_transformed_point_x), 2) - pow((base_point_y - table_transformed_point_y), 2);
+        bool slider_is_inside_range = false;
+        double z_part = pow(ARM_LENGTH, 2) - pow((base_x - table_transformed_x), 2) - pow((base_y - table_transformed_y), 2);
 
         if (z_part > 0) {
             // This is one of two possible solutions for z coordinate of slider (higher solution of two).
             // Lower solution will be table_transformed_point_z - sqrt(z_part).
             // We don't use second solution because we fear damage during solution switching.
-            double z_coordinate_of_slider = table_transformed_point_z + sqrt(z_part);
-            slider_inside_range = (z_coordinate_of_slider < MAX_POSSIBLE_HEIGHT) && (z_coordinate_of_slider > MIN_POSSIBLE_HEIGHT);
-            if (slider_inside_range) {
-                gsl_vector_set(maybe_slider_positions.positions[i], 2, z_coordinate_of_slider);
+            double slider_z = table_transformed_z + sqrt(z_part);
+            slider_is_inside_range = (slider_z < MAX_POSSIBLE_HEIGHT) && (slider_z > MIN_POSSIBLE_HEIGHT);
+            if (slider_is_inside_range) {
+                gsl_vector_set(maybe_slider_coordinates.coordinates[i], 2, slider_z);
             } else {
-                gsl_vector_free(maybe_slider_positions.positions[i]);
-                maybe_slider_positions.positions[i] = NULL;
+                gsl_vector_free(maybe_slider_coordinates.coordinates[i]);
+                maybe_slider_coordinates.coordinates[i] = NULL;
             };
         } else {
-            gsl_vector_free(maybe_slider_positions.positions[i]);
-            maybe_slider_positions.positions[i] = NULL;
+            gsl_vector_free(maybe_slider_coordinates.coordinates[i]);
+            maybe_slider_coordinates.coordinates[i] = NULL;
         }
     }
-    return maybe_slider_positions;
+    return maybe_slider_coordinates;
 }
 // Below is an example of how damage during solution switching may occur.
 // Damage during solution switching appears unlikely when considering only one solution.
@@ -237,45 +260,46 @@ OptionSliderPositions find_slider_positions(
 // This movement can damage our mechanical system.
 
 int main(void) {
-    struct TableCoordinates targeted_table_coords = {0.5, -0.5, 5, -M_PI/10, M_PI/3, 0};
+    struct TableCoordinates targeted_table_coordinates = {0.5, -0.5, 5.0, -M_PI/10, M_PI/3, 0};
 
-    gsl_matrix *transformation_matrix = gsl_matrix_alloc(4, 4);
-    populate_transformation_matrix(transformation_matrix, targeted_table_coords);
+    gsl_matrix* transformation_matrix = gsl_matrix_alloc(4, 4);
+    populate_transformation_matrix(transformation_matrix, targeted_table_coordinates);
 
-    // Array with vertices plus an empty place for centroid:
-    gsl_vector* initial_table_points[NUM_OF_HEXAGON_VERTICES+1];
+    // Array with table vertices plus an empty slot for table centroid:
+    gsl_vector* initial_table_coordinates[NUM_OF_HEXAGON_VERTICES+1];
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES+1; i++) {
-        initial_table_points[i] = gsl_vector_alloc(3);
+        initial_table_coordinates[i] = gsl_vector_alloc(3);
     }
-    populate_hexagon(initial_table_points, TABLE_RADIUS, TABLE_ANGLE); // Populates all vectors except last
-    populate_centroid(initial_table_points); // Populates last vector
+    populate_hexagon(initial_table_coordinates, TABLE_RADIUS, TABLE_ANGLE); // Populates all vectors except last
+    populate_centroid(initial_table_coordinates); // Populates last vector
 
-    // Transformation of all points (including centroid):
-    gsl_vector *transformed_table_points[NUM_OF_HEXAGON_VERTICES+1];
+    // Transformation of all vectors (including centroid):
+    gsl_vector* transformed_table_coordinates[NUM_OF_HEXAGON_VERTICES+1];
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES+1; i++) {
-        transformed_table_points[i] = gsl_vector_alloc(3);
-        transform_point(transformed_table_points[i], transformation_matrix, initial_table_points[i]);
+        transformed_table_coordinates[i] = gsl_vector_alloc(3);
+        populate_transformed_coordinates(transformed_table_coordinates[i], transformation_matrix, initial_table_coordinates[i]);
     }
 
-    printf("\nInitial (x, y, z) coordinates of table points in cm, with vertices and centroid:\n");
-    print_points(initial_table_points, NUM_OF_HEXAGON_VERTICES+2);
 
-    printf("\nTargeted (x, y, z) coordinates of table points in cm, with vertices and centroid:\n");
-    print_points(transformed_table_points, NUM_OF_HEXAGON_VERTICES+1);
+    print_targeted_table_coordinates(targeted_table_coordinates);
 
-    gsl_vector *base_points[NUM_OF_HEXAGON_VERTICES];
+    printf("\nTargeted (x, y, z) coordinates of table vertices and centroid in cm:\n");
+    print_table_vertices_and_centroid(transformed_table_coordinates, NUM_OF_HEXAGON_VERTICES+1);
+
+    printf("\nInitial (x, y, z) coordinates of table vertices and centroid in cm:\n");
+    print_table_vertices_and_centroid(initial_table_coordinates, NUM_OF_HEXAGON_VERTICES+1);
+
+    gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-        base_points[i] = gsl_vector_alloc(3);
+        lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
     }
-    populate_hexagon(base_points, BASE_RADIUS, BASE_ANGLE); // Each base point lay exactly under corresponing slider.
+    populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
 
-    printf("\nImmutable (x, y, z) coordinates of base points in cm, with vertices only:\n");
-    print_points(base_points, NUM_OF_HEXAGON_VERTICES);
+    printf("\nLowest possible slider slider coordinates (x, y, z) in cm:\n");
+    print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
 
-    print_TableCoordinates(targeted_table_coords);
-
-    OptionSliderPositions maybe_sliders = find_slider_positions(transformed_table_points, base_points);
-    print_slider_positions(maybe_sliders);
+    OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_table_coordinates, lowest_possible_slider_coordinates);
+    print_transformed_slider_coordinates(maybe_sliders);
 
     return 0;
 }

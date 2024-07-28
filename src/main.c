@@ -19,6 +19,7 @@ const int NUM_OF_SLIDERS = 6;
 
 
 /// CONSTANTS THAT CAN BE CHANGED
+const  double NEEDLE_LENGTH = 3;
 const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertex pairs of the hexagonal table in radians. A regular hexagon will have 60 deg.
 const double BASE_RADIUS = 7.0; // Radius of the hexagonal base in cm.
@@ -173,7 +174,7 @@ void populate_hexagon(
     gsl_vector_set(coordinates[5], 2, 0.0);
 }
 
-void populate_centroid(gsl_vector** coordinates) {
+void populate_centroid_coordinates(gsl_vector** coordinates) {
     double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
     for (int j = 0; j < NUM_OF_HEXAGON_VERTICES; j++) {
         x_sum += gsl_vector_get(coordinates[j], 0);
@@ -187,6 +188,20 @@ void populate_centroid(gsl_vector** coordinates) {
     gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 0, x_centroid);
     gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 1, y_centroid);
     gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 2, z_centroid);
+}
+
+void populate_needle_coordinates(gsl_vector** coordinates_with_populated_centroid) {
+    double coordinate_x_centroid = gsl_vector_get(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES], 0);
+    double coordinate_y_centroid = gsl_vector_get(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES], 1);
+    double coordinate_z_centroid = gsl_vector_get(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES], 2);
+
+    double coordinate_x_needle = coordinate_x_centroid;
+    double coordinate_y_needle = coordinate_y_centroid;
+    double coordinate_z_needle = coordinate_z_centroid - NEEDLE_LENGTH;
+
+    gsl_vector_set(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES+1], 0, coordinate_x_needle);
+    gsl_vector_set(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES+1], 1,  coordinate_y_needle);
+    gsl_vector_set(coordinates_with_populated_centroid[NUM_OF_HEXAGON_VERTICES+1], 2, coordinate_z_needle);
 }
 
 void populate_transformed_coordinates(
@@ -270,7 +285,7 @@ OptionSliderCoordinates find_slider_coordinates(
 // This movement can damage our mechanical system.
 
 int main(void) {
-    struct TableCoordinates targeted_table_coordinates = {10.5, -0.5, 5.0, -M_PI/10, M_PI/3, 0};
+    struct TableCoordinates targeted_table_coordinates = {0.5, -0.5, 5.0, -M_PI/10, M_PI/3, 0};
 
     gsl_matrix* transformation_matrix = gsl_matrix_alloc(4, 4);
     populate_transformation_matrix(transformation_matrix, targeted_table_coordinates);
@@ -281,8 +296,8 @@ int main(void) {
         initial_table_coordinates[i] = gsl_vector_alloc(3);
     }
     populate_hexagon(initial_table_coordinates, TABLE_RADIUS, TABLE_ANGLE);
-    populate_centroid(initial_table_coordinates);
-
+    populate_centroid_coordinates(initial_table_coordinates);
+    populate_needle_coordinates(initial_table_coordinates);
     // Transformation of all vectors (including centroid):
     gsl_vector* transformed_table_coordinates[NUM_OF_TRANSFORMED_VECTORS];
     for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {

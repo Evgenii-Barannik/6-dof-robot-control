@@ -13,6 +13,7 @@
 /// CONSTANTS THAT SHOULD NOT BE CHANGED
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
 const int NUM_OF_HEXAGON_VERTICES = 6;
+const int NUM_OF_TRANSFORMED_VECTORS = NUM_OF_HEXAGON_VERTICES + 2;
 const int NUM_OF_SLIDERS = 6;
 ///
 
@@ -34,7 +35,7 @@ struct TableCoordinates { // Full description of the table position.
 };
 
 // Array of pointers to NULL (if slider coordinates were not found)
-// or pointers to slider coordinates (if slider cooridnates were found).
+// or pointers to slider coordinates (if slider coordinates were found).
 typedef struct {
     gsl_vector* coordinates[NUM_OF_HEXAGON_VERTICES];
 } OptionSliderCoordinates;
@@ -56,8 +57,8 @@ void print_targeted_table_coordinates(struct TableCoordinates table) {
     printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
 }
 
-void print_table_vertices_and_centroid(gsl_vector** vectors, int num_of_vectors_to_print) {
-    assert(num_of_vectors_to_print == NUM_OF_HEXAGON_VERTICES + 1);
+void print_table_vertices_and_centroid_and_needle(gsl_vector** vectors, int num_of_vectors_to_print) {
+    assert(num_of_vectors_to_print == NUM_OF_HEXAGON_VERTICES + 2);
 
     for(int i = 0; i < num_of_vectors_to_print; i++) {
         printf("%d: (%f, %f, %f)", i,
@@ -67,6 +68,9 @@ void print_table_vertices_and_centroid(gsl_vector** vectors, int num_of_vectors_
 
         if (i == NUM_OF_HEXAGON_VERTICES) {
             printf(" <-- centroid");
+        }
+        if (i == NUM_OF_HEXAGON_VERTICES + 1){
+            printf(" <-- needle");
         }
         printf("\n");
     }
@@ -169,6 +173,22 @@ void populate_hexagon(
     gsl_vector_set(coordinates[5], 2, 0.0);
 }
 
+void populate_centroid(gsl_vector** coordinates) {
+    double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
+    for (int j = 0; j < NUM_OF_HEXAGON_VERTICES; j++) {
+        x_sum += gsl_vector_get(coordinates[j], 0);
+        y_sum += gsl_vector_get(coordinates[j], 1);
+        z_sum += gsl_vector_get(coordinates[j], 2);
+    }
+    double x_centroid = x_sum/NUM_OF_HEXAGON_VERTICES;
+    double y_centroid = y_sum/NUM_OF_HEXAGON_VERTICES;
+    double z_centroid = z_sum/NUM_OF_HEXAGON_VERTICES;
+
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 0, x_centroid);
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 1, y_centroid);
+    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 2, z_centroid);
+}
+
 void populate_transformed_coordinates(
     gsl_vector* place_for_transformed_coordinates_in_3D,
     const gsl_matrix* transformation_matrix,
@@ -176,10 +196,10 @@ void populate_transformed_coordinates(
 
     // Uplifting to 4D
     gsl_vector* initial_coordinates_in_4D = gsl_vector_alloc(4);
-    gsl_vector_set(initial_coordinates_in_4D, 0, gsl_vector_get(initial_coordinates_in_3D, 0));
-    gsl_vector_set(initial_coordinates_in_4D, 1, gsl_vector_get(initial_coordinates_in_3D, 1));
-    gsl_vector_set(initial_coordinates_in_4D, 2, gsl_vector_get(initial_coordinates_in_3D, 2));
-    gsl_vector_set(initial_coordinates_in_4D, 3, 1.0);
+    gsl_vector_set(initial_coordinates_in_4D, 0, gsl_vector_get(initial_coordinates_in_3D, 0)); // We take X coordinate of 3D vector
+    gsl_vector_set(initial_coordinates_in_4D, 1, gsl_vector_get(initial_coordinates_in_3D, 1)); // We take Y coordinate of 3D vector
+    gsl_vector_set(initial_coordinates_in_4D, 2, gsl_vector_get(initial_coordinates_in_3D, 2)); // We take Z coordinate of 3D vector
+    gsl_vector_set(initial_coordinates_in_4D, 3, 1.0); // We use new coordinate for Tau
 
     // Linear transformation in 4D
     gsl_vector* transformed_coordinates_in_4D = gsl_vector_alloc(4);
@@ -194,18 +214,7 @@ void populate_transformed_coordinates(
     gsl_vector_free(transformed_coordinates_in_4D);
 }
 
-void populate_centroid(gsl_vector** coordinates) {
-    double x_sum = 0.0, y_sum = 0.0, z_sum = 0.0;
-    for (int j = 0; j < NUM_OF_HEXAGON_VERTICES; j++) {
-        x_sum += gsl_vector_get(coordinates[j], 0);
-        y_sum += gsl_vector_get(coordinates[j], 1);
-        z_sum += gsl_vector_get(coordinates[j], 2);
 
-    }
-    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 0, x_sum/NUM_OF_HEXAGON_VERTICES);
-    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 1, y_sum/NUM_OF_HEXAGON_VERTICES);
-    gsl_vector_set(coordinates[NUM_OF_HEXAGON_VERTICES], 2, z_sum/NUM_OF_HEXAGON_VERTICES);
-}
 
 OptionSliderCoordinates find_slider_coordinates(
     gsl_vector** table_transformed_coordinates,
@@ -224,13 +233,14 @@ OptionSliderCoordinates find_slider_coordinates(
         double base_y = gsl_vector_get(base_coordinates[i], 1);
 
         bool slider_is_inside_range = false;
-        double z_part = pow(ARM_LENGTH, 2) - pow((base_x - table_transformed_x), 2) - pow((base_y - table_transformed_y), 2);
+        // deltaZ^2 = R^2 - deltaX^2 - deltaY^2
+        double z_squared = pow(ARM_LENGTH, 2) - pow((base_x - table_transformed_x), 2) - pow((base_y - table_transformed_y), 2);
 
-        if (z_part > 0) {
+        if (z_squared > 0) {
             // This is one of two possible solutions for z coordinate of slider (higher solution of two).
-            // Lower solution will be table_transformed_point_z - sqrt(z_part).
+            // Lower solution will be table_transformed_z - sqrt(z_squared).
             // We don't use second solution because we fear damage during solution switching.
-            double slider_z = table_transformed_z + sqrt(z_part);
+            double slider_z = table_transformed_z + sqrt(z_squared);
             slider_is_inside_range = (slider_z < MAX_POSSIBLE_HEIGHT) && (slider_z > MIN_POSSIBLE_HEIGHT);
             if (slider_is_inside_range) {
                 gsl_vector_set(maybe_slider_coordinates.coordinates[i], 2, slider_z);
@@ -260,34 +270,33 @@ OptionSliderCoordinates find_slider_coordinates(
 // This movement can damage our mechanical system.
 
 int main(void) {
-    struct TableCoordinates targeted_table_coordinates = {0.5, -0.5, 5.0, -M_PI/10, M_PI/3, 0};
+    struct TableCoordinates targeted_table_coordinates = {10.5, -0.5, 5.0, -M_PI/10, M_PI/3, 0};
 
     gsl_matrix* transformation_matrix = gsl_matrix_alloc(4, 4);
     populate_transformation_matrix(transformation_matrix, targeted_table_coordinates);
 
     // Array with table vertices plus an empty slot for table centroid:
-    gsl_vector* initial_table_coordinates[NUM_OF_HEXAGON_VERTICES+1];
-    for (int i = 0; i < NUM_OF_HEXAGON_VERTICES+1; i++) {
+    gsl_vector* initial_table_coordinates[NUM_OF_TRANSFORMED_VECTORS];
+    for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
         initial_table_coordinates[i] = gsl_vector_alloc(3);
     }
-    populate_hexagon(initial_table_coordinates, TABLE_RADIUS, TABLE_ANGLE); // Populates all vectors except last
-    populate_centroid(initial_table_coordinates); // Populates last vector
+    populate_hexagon(initial_table_coordinates, TABLE_RADIUS, TABLE_ANGLE);
+    populate_centroid(initial_table_coordinates);
 
     // Transformation of all vectors (including centroid):
-    gsl_vector* transformed_table_coordinates[NUM_OF_HEXAGON_VERTICES+1];
-    for (int i = 0; i < NUM_OF_HEXAGON_VERTICES+1; i++) {
+    gsl_vector* transformed_table_coordinates[NUM_OF_TRANSFORMED_VECTORS];
+    for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
         transformed_table_coordinates[i] = gsl_vector_alloc(3);
         populate_transformed_coordinates(transformed_table_coordinates[i], transformation_matrix, initial_table_coordinates[i]);
     }
 
-
     print_targeted_table_coordinates(targeted_table_coordinates);
 
-    printf("\nTargeted (x, y, z) coordinates of table vertices and centroid in cm:\n");
-    print_table_vertices_and_centroid(transformed_table_coordinates, NUM_OF_HEXAGON_VERTICES+1);
+    printf("\nTargeted (x, y, z) coordinates of table vertices and centroid and needle in cm:\n");
+    print_table_vertices_and_centroid_and_needle(transformed_table_coordinates, NUM_OF_TRANSFORMED_VECTORS);
 
-    printf("\nInitial (x, y, z) coordinates of table vertices and centroid in cm:\n");
-    print_table_vertices_and_centroid(initial_table_coordinates, NUM_OF_HEXAGON_VERTICES+1);
+    printf("\nInitial (x, y, z) coordinates of table vertices and centroid and needle in cm:\n");
+    print_table_vertices_and_centroid_and_needle(initial_table_coordinates, NUM_OF_TRANSFORMED_VECTORS);
 
     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {

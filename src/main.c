@@ -17,8 +17,9 @@ const int NUM_OF_TRANSFORMED_VECTORS = NUM_OF_HEXAGON_VERTICES + 2;
 const int NUM_OF_SLIDERS = 6;
 ///
 
-
 /// CONSTANTS THAT CAN BE CHANGED
+const int NUM_OF_HOMOTOPY_FRAMES = 5;
+
 const double NEEDLE_LENGTH = 3;
 const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
@@ -68,10 +69,10 @@ void print_3dmodel_coordinates(gsl_vector** vectors, int num_of_vectors_to_print
             gsl_vector_get(vectors[i], 2));
 
         if (i == NUM_OF_HEXAGON_VERTICES) {
-            printf(" <-- centroid");
+            printf(" <-- table centroid");
         }
         if (i == NUM_OF_HEXAGON_VERTICES + 1){
-            printf(" <-- needle");
+            printf(" <-- needle end");
         }
         printf("\n");
     }
@@ -119,7 +120,35 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
 
 void populate_transformation_matrix(
     gsl_matrix* transformation_matrix,
-    const struct NeedleCoordinates c) {
+    const double homotopy_coefficient,
+    const struct NeedleCoordinates c
+    ) {
+    assert(homotopy_coefficient <= 1.0 || homotopy_coefficient >= 0.0);
+
+   	gsl_matrix* identity_matrix;
+	identity_matrix = gsl_matrix_alloc(4, 4);
+	printf("Current homotopy coefficient is %f\n", homotopy_coefficient);
+
+    gsl_matrix_set(identity_matrix, 0, 0, 1.0);
+    gsl_matrix_set(identity_matrix, 0, 1, 0.0);
+    gsl_matrix_set(identity_matrix, 0, 2, 0.0);
+    gsl_matrix_set(identity_matrix, 0, 3, 0.0);
+
+    gsl_matrix_set(identity_matrix, 1, 0, 0.0);
+    gsl_matrix_set(identity_matrix, 1, 1, 1.0);
+    gsl_matrix_set(identity_matrix, 1, 2, 0.0);
+    gsl_matrix_set(identity_matrix, 1, 3, 0.0);
+
+    gsl_matrix_set(identity_matrix, 2, 0, 0.0);
+    gsl_matrix_set(identity_matrix, 2, 1, 0.0);
+    gsl_matrix_set(identity_matrix, 2, 2, 1.0);
+    gsl_matrix_set(identity_matrix, 2, 3, 0.0);
+
+    gsl_matrix_set(identity_matrix, 3, 0, 0.0);
+    gsl_matrix_set(identity_matrix, 3, 1, 0.0);
+    gsl_matrix_set(identity_matrix, 3, 2, 0.0);
+    gsl_matrix_set(identity_matrix, 3, 3, 1.0);
+
     gsl_matrix_set(transformation_matrix, 0, 0, cos(c.psi) * cos(c.theta));
     gsl_matrix_set(transformation_matrix, 0, 1, cos(c.psi) * sin(c.theta) * sin(c.phi) - sin(c.psi) * cos(c.phi));
     gsl_matrix_set(transformation_matrix, 0, 2, cos(c.psi) * sin(c.theta) * cos(c.phi) + sin(c.psi) * sin(c.phi));
@@ -139,6 +168,8 @@ void populate_transformation_matrix(
     gsl_matrix_set(transformation_matrix, 3, 1, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 2, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 3, 1.0);
+
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0 - homotopy_coefficient, identity_matrix, identity_matrix, homotopy_coefficient, transformation_matrix);
 }
 
 void populate_table_3dmodel (gsl_vector** coordinates) {
@@ -290,46 +321,65 @@ OptionSliderCoordinates find_slider_coordinates(
 // thus passing through set of incorrect configurations.
 // This movement can damage our mechanical system.
 
+void print_homotopy_frame(gsl_matrix* homotopy_frame) {
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            printf("%f ", gsl_matrix_get(homotopy_frame, row, col));
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+
 int main(void) {
-    struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
+	struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
 
-    gsl_matrix* transformation_matrix = gsl_matrix_alloc(4, 4);
-    // Transformation that brings point (0, 0, 0, 0, 0 ,0) NeedleCoordinates to the targeted_needle_coordinates.
-    populate_transformation_matrix(transformation_matrix, targeted_needle_coordinates);
+	// Homotopy I->T where
+	// I is rhe Identity transformation,
+	// T is the Transformation that brings (0, 0, 0, 0, 0 ,0) to the (targeted_needle_coordinates).
+	gsl_matrix* homotopy_frames[NUM_OF_HOMOTOPY_FRAMES];
+	for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
+		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
+		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+		populate_transformation_matrix(homotopy_frames[i], homotopy_coefficient, targeted_needle_coordinates);
+		print_homotopy_frame(homotopy_frames[i]);
+	}
 
-    // Array of all vectors describing our 3D model.
-    gsl_vector* initial_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
-    for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-        initial_3dmodel[i] = gsl_vector_alloc(3);
-    }
-    populate_table_3dmodel(initial_3dmodel);
+	// Array of all vectors describing our 3D model.
+	gsl_vector* initial_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
+	for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
+		initial_3dmodel[i] = gsl_vector_alloc(3);
+	}
+	populate_table_3dmodel(initial_3dmodel);
 
-    // Transformation of all vectors:
-    gsl_vector* transformed_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
-    for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-        transformed_3dmodel[i] = gsl_vector_alloc(3);
-        populate_transformed_coordinates(transformed_3dmodel[i], transformation_matrix, initial_3dmodel[i]);
-    }
+	printf("\nInitial (x, y, z) coordinates of the table 3d model points in cm:\n");
+	print_3dmodel_coordinates(initial_3dmodel, NUM_OF_TRANSFORMED_VECTORS);
+	print_targeted_needle_coordinates(targeted_needle_coordinates);
 
-    print_targeted_needle_coordinates(targeted_needle_coordinates);
+	// Transformation of all vectors for each homotopy frame:
+	gsl_vector* transformed_3dmodel_frames[NUM_OF_TRANSFORMED_VECTORS][NUM_OF_HOMOTOPY_FRAMES];
+	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
+		// for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
+		//	transformed_3dmodel_frames[i][j] = gsl_vector_alloc(3);
+		//	populate_transformed_coordinates(transformed_3dmodel_frames[i][j], homotopy_frames[j], initial_3dmodel[i]);
+		// }
+		printf("\nTargeted (x, y, z) coordinates of the table 3d model points in cm:\n");
+		// print_3dmodel_coordinates(transformed_3dmodel_frames[j], NUM_OF_TRANSFORMED_VECTORS);
+	}
+//
+//
+//     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
+//     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
+//         lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
+//     }
+//     populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
+//
+//     printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
+//     print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
 
-    printf("\nInitial (x, y, z) coordinates of the table 3d model points in cm:\n");
-    print_3dmodel_coordinates(initial_3dmodel, NUM_OF_TRANSFORMED_VECTORS);
-
-    printf("\nTargeted (x, y, z) coordinates of the table 3d model points in cm:\n");
-    print_3dmodel_coordinates(transformed_3dmodel, NUM_OF_TRANSFORMED_VECTORS);
-
-    gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
-    for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-        lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
-    }
-    populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
-
-    printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
-    print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
-
-    OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_3dmodel, lowest_possible_slider_coordinates);
-    print_transformed_slider_coordinates(maybe_sliders);
+     // OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_3dmodel, lowest_possible_slider_coordinates);
+     // print_transformed_slider_coordinates(maybe_sliders);
 
     return 0;
 }

@@ -120,7 +120,9 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
 void populate_transformation_matrix(
     gsl_matrix* transformation_matrix,
     const double homotopy_coefficient,
-    const struct NeedleCoordinates c
+    const struct NeedleCoordinates c_targeted,
+    const struct NeedleCoordinates c_initial
+
     ) {
     assert(homotopy_coefficient <= 1.0 && homotopy_coefficient >= 0.0);
 
@@ -146,26 +148,29 @@ void populate_transformation_matrix(
     gsl_matrix_set(identity_matrix, 3, 2, 0.0);
     gsl_matrix_set(identity_matrix, 3, 3, 1.0);
 
-    gsl_matrix_set(transformation_matrix, 0, 0, cos(c.psi) * cos(c.theta));
-    gsl_matrix_set(transformation_matrix, 0, 1, cos(c.psi) * sin(c.theta) * sin(c.phi) - sin(c.psi) * cos(c.phi));
-    gsl_matrix_set(transformation_matrix, 0, 2, cos(c.psi) * sin(c.theta) * cos(c.phi) + sin(c.psi) * sin(c.phi));
-    gsl_matrix_set(transformation_matrix, 0, 3, c.x);
+    gsl_matrix_set(transformation_matrix, 0, 0, cos(c_targeted.psi) * cos(c_targeted.theta));
+    gsl_matrix_set(transformation_matrix, 0, 1, cos(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) - sin(c_targeted.psi) * cos(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 0, 2, cos(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) + sin(c_targeted.psi) * sin(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 0, 3, c_targeted.x);
 
-    gsl_matrix_set(transformation_matrix, 1, 0, sin(c.psi) * cos(c.theta));
-    gsl_matrix_set(transformation_matrix, 1, 1, sin(c.psi) * sin(c.theta) * sin(c.phi) + cos(c.psi) * cos(c.phi));
-    gsl_matrix_set(transformation_matrix, 1, 2, sin(c.psi) * sin(c.theta) * cos(c.phi) - cos(c.psi) * sin(c.phi));
-    gsl_matrix_set(transformation_matrix, 1, 3, c.y);
+    gsl_matrix_set(transformation_matrix, 1, 0, sin(c_targeted.psi) * cos(c_targeted.theta));
+    gsl_matrix_set(transformation_matrix, 1, 1, sin(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) + cos(c_targeted.psi) * cos(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 1, 2, sin(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) - cos(c_targeted.psi) * sin(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 1, 3, c_targeted.y);
 
-    gsl_matrix_set(transformation_matrix, 2, 0, -sin(c.theta));
-    gsl_matrix_set(transformation_matrix, 2, 1, cos(c.theta) * sin(c.phi));
-    gsl_matrix_set(transformation_matrix, 2, 2, cos(c.theta) * cos(c.phi));
-    gsl_matrix_set(transformation_matrix, 2, 3, c.z);
+    gsl_matrix_set(transformation_matrix, 2, 0, -sin(c_targeted.theta));
+    gsl_matrix_set(transformation_matrix, 2, 1, cos(c_targeted.theta) * sin(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 2, 2, cos(c_targeted.theta) * cos(c_targeted.phi));
+    gsl_matrix_set(transformation_matrix, 2, 3, c_targeted.z);
 
     gsl_matrix_set(transformation_matrix, 3, 0, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 1, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 2, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 3, 1.0);
 
+    //(1-k)T + (k)Id
+    // Docs for this function:
+    // https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
     gsl_blas_dgemm(
         CblasNoTrans,
         CblasNoTrans,
@@ -175,8 +180,6 @@ void populate_transformation_matrix(
         homotopy_coefficient,
         transformation_matrix
     );
-    // Docs for this function:
-    // https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
 }
 
 void populate_table_3dmodel (gsl_vector** coordinates) {
@@ -340,6 +343,7 @@ void print_homotopy_frame(gsl_matrix* homotopy_frame) {
 
 
 int main(void) {
+	struct NeedleCoordinates initial_needle_coordinates = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
 
 	// Homotopy I->T where

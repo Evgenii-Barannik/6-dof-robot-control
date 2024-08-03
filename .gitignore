@@ -1,2 +1,3 @@
 C/build/*
-.ipynb_checkpoints/6-dof-robot-control-checkpoint.ipynb
+*/.ipynb_checkpoints/*
+.DS_Store

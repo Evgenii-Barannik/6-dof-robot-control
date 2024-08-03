@@ -182,36 +182,36 @@ void populate_transformation_matrix(
 void populate_table_3dmodel (gsl_vector** coordinates) {
     double radius = TABLE_RADIUS;
     double angle_in_radians = TABLE_ANGLE;
-    double separation_from_needle_end = NEEDLE_LENGTH;
+    double distance_from_needle_end = NEEDLE_LENGTH;
 
     gsl_vector_set(coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[0], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[0], 2, distance_from_needle_end);
 
     gsl_vector_set(coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[1], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[1], 2, distance_from_needle_end);
 
     gsl_vector_set(coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[2], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[2], 2, distance_from_needle_end);
 
     gsl_vector_set(coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[3], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[3], 2, distance_from_needle_end);
 
     gsl_vector_set(coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[4], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[4], 2, distance_from_needle_end);
 
     gsl_vector_set(coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
     gsl_vector_set(coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-    gsl_vector_set(coordinates[5], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[5], 2, distance_from_needle_end);
 
     // Table centroid
     gsl_vector_set(coordinates[6], 0, 0.0);
     gsl_vector_set(coordinates[6], 1, 0.0);
-    gsl_vector_set(coordinates[6], 2, separation_from_needle_end);
+    gsl_vector_set(coordinates[6], 2, distance_from_needle_end);
 
     // Needle end
     gsl_vector_set(coordinates[7], 0, 0.0);
@@ -368,13 +368,10 @@ int main(void) {
 	// Transformation of all vectors for each homotopy frame:
 	gsl_vector* transformed_3dmodel_frames[NUM_OF_TRANSFORMED_VECTORS][NUM_OF_HOMOTOPY_FRAMES];
 	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
-		// gsl_vector* transformed_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
 		for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-// 			gsl_vector* specific_vector = transformed_3dmodel_frames[i][j];
 			transformed_3dmodel_frames[i][j] = gsl_vector_alloc(3);
 			populate_transformed_coordinates(transformed_3dmodel_frames[i][j], homotopy_frames[j], initial_3dmodel[i]);
 		}
-//		transformed_3dmodel_frames[j] = *transformed_3dmodel;
 	}
 	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
 		double homotopy_coefficient = (double) j / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
@@ -385,18 +382,17 @@ int main(void) {
 		}
 		print_3dmodel_coordinates(frame_vectors);
 	}
-//
-//     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
-//     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-//         lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
-//     }
-//     populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
-//
-//     printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
-//     print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
 
-     // OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_3dmodel, lowest_possible_slider_coordinates);
-     // print_transformed_slider_coordinates(maybe_sliders);
+     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
+     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
+         lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
+     }
+     populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
+     printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
+     print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
+
+//   OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_3dmodel, lowest_possible_slider_coordinates);
+//   print_transformed_slider_coordinates(maybe_sliders);
 
     return 0;
 }

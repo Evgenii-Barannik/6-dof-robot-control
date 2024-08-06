@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
 
 // Ensures that assertions are not disabled
 #undef NDEBUG
@@ -120,9 +121,8 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
 void populate_transformation_matrix(
     gsl_matrix* transformation_matrix,
     const double homotopy_coefficient,
-    const struct NeedleCoordinates c_targeted,
-    const struct NeedleCoordinates c_initial
-
+    const struct NeedleCoordinates c_targeted
+    // const struct NeedleCoordinates c_initial
     ) {
     assert(homotopy_coefficient <= 1.0 && homotopy_coefficient >= 0.0);
 
@@ -168,8 +168,42 @@ void populate_transformation_matrix(
     gsl_matrix_set(transformation_matrix, 3, 2, 0.0);
     gsl_matrix_set(transformation_matrix, 3, 3, 1.0);
 
-    //(1-k)T + (k)Id
-    // Docs for this function:
+    double transformation_matrix_copy_data[16];
+    gsl_matrix_view t_copy = gsl_matrix_view_array(transformation_matrix_copy_data, 4, 4);
+    gsl_matrix_memcpy(&t_copy.matrix, transformation_matrix);
+
+    printf("\nInitial transformation matrix is\n");
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(&t_copy.matrix,i,j));
+
+    double inverted_transformation_matrix_data[16];
+    gsl_matrix_view inv = gsl_matrix_view_array(inverted_transformation_matrix_data,4, 4);
+    gsl_permutation * p = gsl_permutation_alloc(4);
+    int signum;
+
+    gsl_linalg_LU_decomp (&t_copy.matrix, p, &signum);
+    gsl_linalg_LU_invert (&t_copy.matrix, p, &inv.matrix);
+
+    printf("\nThe inverse is\n");
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(&inv.matrix,i,j));
+
+    gsl_permutation_free (p);
+    double product_matrix_data[16];
+    gsl_matrix_view product = gsl_matrix_view_array(product_matrix_data, 4, 4);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, transformation_matrix, &inv.matrix,  0.0, &product.matrix);
+
+    printf("\nProduct matrix is\n");
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(&product.matrix,i,j));
+
+    //Here our affine transformation matrix T
+    // is changed into (1-k)T + (k)Id, where
+    // k is the homotopy coefficient
+    // Docs for used function:
     // https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
     gsl_blas_dgemm(
         CblasNoTrans,
@@ -180,6 +214,11 @@ void populate_transformation_matrix(
         homotopy_coefficient,
         transformation_matrix
     );
+
+    printf("\nTransformation matrix mixed with Id with homotopy coefficient %.3f\n", homotopy_coefficient);
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(transformation_matrix,i,j));
 }
 
 void populate_table_3dmodel (gsl_vector** coordinates) {
@@ -343,7 +382,7 @@ void print_homotopy_frame(gsl_matrix* homotopy_frame) {
 
 
 int main(void) {
-	struct NeedleCoordinates initial_needle_coordinates = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	// struct NeedleCoordinates initial_needle_coordinates = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
 
 	// Homotopy I->T where
@@ -353,9 +392,7 @@ int main(void) {
 	for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
 		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
 		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
-		printf("Affine matrix for homotopy coefficient %f:\n", homotopy_coefficient);
 		populate_transformation_matrix(homotopy_frames[i], homotopy_coefficient, targeted_needle_coordinates);
-		print_homotopy_frame(homotopy_frames[i]);
 	}
 
 	// Array of all vectors describing our 3D model.

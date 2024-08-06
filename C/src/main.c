@@ -31,7 +31,6 @@ const double MIN_POSSIBLE_HEIGHT = 0; // Lowest possible position for sliders in
 const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
 ///
 
-
 struct NeedleCoordinates { // Full ideal description of the needle position, and thus, whole system.
     double x, y, z; // Coordinates of the needle end in cm.
     double phi, theta, psi; // Euler angles for the needle in radians.
@@ -58,6 +57,12 @@ void print_targeted_needle_coordinates(struct NeedleCoordinates table) {
     printf("Targeted needle coordinates: \n");
     printf("Linear coordinates (x, y, z) in cm:        (%f, %f, %f)\n", table.x, table.y, table.z);
     printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
+}
+
+void print_matrix_4D(const gsl_matrix* m) {
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(m,i,j));
 }
 
 void print_3dmodel_coordinates(gsl_vector* vectors[NUM_OF_TRANSFORMED_VECTORS]) {
@@ -119,107 +124,94 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
 }
 
 void populate_transformation_matrix(
-    gsl_matrix* transformation_matrix,
-    const double homotopy_coefficient,
+    gsl_matrix* T, // Place where final affine transformation matrix will be written
     const struct NeedleCoordinates c_targeted
     // const struct NeedleCoordinates c_initial
     ) {
-    assert(homotopy_coefficient <= 1.0 && homotopy_coefficient >= 0.0);
+    gsl_matrix_set(T, 0, 0, cos(c_targeted.psi) * cos(c_targeted.theta));
+    gsl_matrix_set(T, 0, 1, cos(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) - sin(c_targeted.psi) * cos(c_targeted.phi));
+    gsl_matrix_set(T, 0, 2, cos(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) + sin(c_targeted.psi) * sin(c_targeted.phi));
+    gsl_matrix_set(T, 0, 3, c_targeted.x);
 
-    gsl_matrix* identity_matrix;
-    identity_matrix = gsl_matrix_alloc(4, 4);
-    gsl_matrix_set(identity_matrix, 0, 0, 1.0);
-    gsl_matrix_set(identity_matrix, 0, 1, 0.0);
-    gsl_matrix_set(identity_matrix, 0, 2, 0.0);
-    gsl_matrix_set(identity_matrix, 0, 3, 0.0);
+    gsl_matrix_set(T, 1, 0, sin(c_targeted.psi) * cos(c_targeted.theta));
+    gsl_matrix_set(T, 1, 1, sin(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) + cos(c_targeted.psi) * cos(c_targeted.phi));
+    gsl_matrix_set(T, 1, 2, sin(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) - cos(c_targeted.psi) * sin(c_targeted.phi));
+    gsl_matrix_set(T, 1, 3, c_targeted.y);
 
-    gsl_matrix_set(identity_matrix, 1, 0, 0.0);
-    gsl_matrix_set(identity_matrix, 1, 1, 1.0);
-    gsl_matrix_set(identity_matrix, 1, 2, 0.0);
-    gsl_matrix_set(identity_matrix, 1, 3, 0.0);
+    gsl_matrix_set(T, 2, 0, -sin(c_targeted.theta));
+    gsl_matrix_set(T, 2, 1, cos(c_targeted.theta) * sin(c_targeted.phi));
+    gsl_matrix_set(T, 2, 2, cos(c_targeted.theta) * cos(c_targeted.phi));
+    gsl_matrix_set(T, 2, 3, c_targeted.z);
 
-    gsl_matrix_set(identity_matrix, 2, 0, 0.0);
-    gsl_matrix_set(identity_matrix, 2, 1, 0.0);
-    gsl_matrix_set(identity_matrix, 2, 2, 1.0);
-    gsl_matrix_set(identity_matrix, 2, 3, 0.0);
+    gsl_matrix_set(T, 3, 0, 0.0);
+    gsl_matrix_set(T, 3, 1, 0.0);
+    gsl_matrix_set(T, 3, 2, 0.0);
+    gsl_matrix_set(T, 3, 3, 1.0);
 
-    gsl_matrix_set(identity_matrix, 3, 0, 0.0);
-    gsl_matrix_set(identity_matrix, 3, 1, 0.0);
-    gsl_matrix_set(identity_matrix, 3, 2, 0.0);
-    gsl_matrix_set(identity_matrix, 3, 3, 1.0);
-
-    gsl_matrix_set(transformation_matrix, 0, 0, cos(c_targeted.psi) * cos(c_targeted.theta));
-    gsl_matrix_set(transformation_matrix, 0, 1, cos(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) - sin(c_targeted.psi) * cos(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 0, 2, cos(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) + sin(c_targeted.psi) * sin(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 0, 3, c_targeted.x);
-
-    gsl_matrix_set(transformation_matrix, 1, 0, sin(c_targeted.psi) * cos(c_targeted.theta));
-    gsl_matrix_set(transformation_matrix, 1, 1, sin(c_targeted.psi) * sin(c_targeted.theta) * sin(c_targeted.phi) + cos(c_targeted.psi) * cos(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 1, 2, sin(c_targeted.psi) * sin(c_targeted.theta) * cos(c_targeted.phi) - cos(c_targeted.psi) * sin(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 1, 3, c_targeted.y);
-
-    gsl_matrix_set(transformation_matrix, 2, 0, -sin(c_targeted.theta));
-    gsl_matrix_set(transformation_matrix, 2, 1, cos(c_targeted.theta) * sin(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 2, 2, cos(c_targeted.theta) * cos(c_targeted.phi));
-    gsl_matrix_set(transformation_matrix, 2, 3, c_targeted.z);
-
-    gsl_matrix_set(transformation_matrix, 3, 0, 0.0);
-    gsl_matrix_set(transformation_matrix, 3, 1, 0.0);
-    gsl_matrix_set(transformation_matrix, 3, 2, 0.0);
-    gsl_matrix_set(transformation_matrix, 3, 3, 1.0);
-
-    double transformation_matrix_copy_data[16];
-    gsl_matrix_view t_copy = gsl_matrix_view_array(transformation_matrix_copy_data, 4, 4);
-    gsl_matrix_memcpy(&t_copy.matrix, transformation_matrix);
+    double T_copy_data[16];
+    gsl_matrix_view T_copy = gsl_matrix_view_array(T_copy_data, 4, 4);
+    gsl_matrix_memcpy(&T_copy.matrix, T);
 
     printf("\nInitial transformation matrix is\n");
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(&t_copy.matrix,i,j));
+    print_matrix_4D(&T_copy.matrix);
 
-    double inverted_transformation_matrix_data[16];
-    gsl_matrix_view inv = gsl_matrix_view_array(inverted_transformation_matrix_data,4, 4);
+    double invT_data[16];
+    gsl_matrix_view invT = gsl_matrix_view_array(invT_data, 4, 4);
+
     gsl_permutation * p = gsl_permutation_alloc(4);
     int signum;
 
-    gsl_linalg_LU_decomp (&t_copy.matrix, p, &signum);
-    gsl_linalg_LU_invert (&t_copy.matrix, p, &inv.matrix);
+    gsl_linalg_LU_decomp (&T_copy.matrix, p, &signum);
+    gsl_linalg_LU_invert (&T_copy.matrix, p, &invT.matrix);
 
     printf("\nThe inverse is\n");
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(&inv.matrix,i,j));
+    print_matrix_4D(&invT.matrix);
 
     gsl_permutation_free (p);
     double product_matrix_data[16];
     gsl_matrix_view product = gsl_matrix_view_array(product_matrix_data, 4, 4);
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, transformation_matrix, &inv.matrix,  0.0, &product.matrix);
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, T, &invT.matrix,  0.0, &product.matrix);
 
     printf("\nProduct matrix is\n");
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(&product.matrix,i,j));
-
-    //Here our affine transformation matrix T
-    // is changed into (1-k)T + (k)Id, where
-    // k is the homotopy coefficient
-    // Docs for used function:
-    // https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
-    gsl_blas_dgemm(
-        CblasNoTrans,
-        CblasNoTrans,
-        1.0 - homotopy_coefficient,
-        identity_matrix,
-        identity_matrix,
-        homotopy_coefficient,
-        transformation_matrix
-    );
-
-    printf("\nTransformation matrix mixed with Id with homotopy coefficient %.3f\n", homotopy_coefficient);
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            printf(j==3?"%12.9f\n":"%12.9f ",gsl_matrix_get(transformation_matrix,i,j));
+    print_matrix_4D(&product.matrix);
 }
+
+void populate_homotopy_frames(gsl_matrix** homotopy_frames, const gsl_matrix* T) {
+    double Id_elements[] = {
+            1.0, 0, 0, 0,
+            0, 1.0, 0, 0,
+            0, 0, 1.0, 0,
+            0, 0, 0, 1.0
+        };
+    const gsl_matrix_view Id_view = gsl_matrix_view_array(Id_elements, 4, 4);
+    const gsl_matrix* Id = &Id_view.matrix;
+
+    for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
+		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
+		gsl_matrix_memcpy(homotopy_frames[i], T);
+		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+
+    	// Here we change affine transformation matrix T
+        // into (1-k)T + (k)Id, where k is the homotopy coefficient
+        // Docs for this function:
+        // https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
+        gsl_blas_dgemm(
+            CblasNoTrans,
+            CblasNoTrans,
+            1.0 - homotopy_coefficient,
+            Id,
+            Id,
+            homotopy_coefficient,
+            homotopy_frames[i]
+        );
+
+        printf("\nMatrix (%.3f)T + (%.3f)Id\n", homotopy_coefficient, 1-homotopy_coefficient);
+        for (int k = 0; k < 4; ++k)
+            for (int j = 0; j < 4; ++j)
+                printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(homotopy_frames[i],k,j));
+	}
+}
+
 
 void populate_table_3dmodel (gsl_vector** coordinates) {
     double radius = TABLE_RADIUS;
@@ -383,55 +375,55 @@ void print_homotopy_frame(gsl_matrix* homotopy_frame) {
 
 int main(void) {
 	// struct NeedleCoordinates initial_needle_coordinates = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
+	const struct NeedleCoordinates targeted_needle_coordinates = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
 
-	// Homotopy I->T where
-	// I is rhe Identity transformation,
+	gsl_matrix* T = gsl_matrix_alloc(4, 4);
+	populate_transformation_matrix(T, targeted_needle_coordinates);
+	// Homotopy Id->T where
+	// Id is the Identity transformation,
 	// T is the Transformation that brings (0, 0, 0, 0, 0 ,0) to the (targeted_needle_coordinates).
 	gsl_matrix* homotopy_frames[NUM_OF_HOMOTOPY_FRAMES];
-	for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
-		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
-		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
-		populate_transformation_matrix(homotopy_frames[i], homotopy_coefficient, targeted_needle_coordinates);
-	}
+	populate_homotopy_frames(homotopy_frames, T);
 
 	// Array of all vectors describing our 3D model.
-	gsl_vector* initial_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
-	for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-		initial_3dmodel[i] = gsl_vector_alloc(3);
-	}
-	populate_table_3dmodel(initial_3dmodel);
+	// gsl_vector* initial_3dmodel[NUM_OF_TRANSFORMED_VECTORS];
+	// for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
+	// 	initial_3dmodel[i] = gsl_vector_alloc(3);
+	// }
+	// populate_table_3dmodel(initial_3dmodel);
 
-	printf("\nInitial (x, y, z) coordinates of 3d model points in cm:\n");
-	print_3dmodel_coordinates(initial_3dmodel);
-	print_targeted_needle_coordinates(targeted_needle_coordinates);
+	// printf("\nInitial (x, y, z) coordinates of 3d model points in cm:\n");
+	// print_3dmodel_coordinates(initial_3dmodel);
+	// print_targeted_needle_coordinates(targeted_needle_coordinates);
 
-	// Transformation of all vectors for each homotopy frame:
-	gsl_vector* transformed_3dmodel_frames[NUM_OF_TRANSFORMED_VECTORS][NUM_OF_HOMOTOPY_FRAMES];
-	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
-		for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-			transformed_3dmodel_frames[i][j] = gsl_vector_alloc(3);
-			populate_transformed_coordinates(transformed_3dmodel_frames[i][j], homotopy_frames[j], initial_3dmodel[i]);
-		}
-	}
-	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
-		double homotopy_coefficient = (double) j / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
-		printf("\nTargeted (x, y, z) coordinates of 3d model points in cm for homotopy coefficient %f:\n", homotopy_coefficient);
-		gsl_vector* frame_vectors[NUM_OF_TRANSFORMED_VECTORS];
-		for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
-			frame_vectors[i] = transformed_3dmodel_frames[i][j];
-		}
-		print_3dmodel_coordinates(frame_vectors);
-	}
+	// // Transformation of all vectors for each homotopy frame:
+	// gsl_vector* transformed_3dmodel_frames[NUM_OF_TRANSFORMED_VECTORS][NUM_OF_HOMOTOPY_FRAMES];
+	// for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
+	// 	for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
+	// 		transformed_3dmodel_frames[i][j] = gsl_vector_alloc(3);
+	// 		populate_transformed_coordinates(transformed_3dmodel_frames[i][j], homotopy_frames[j], initial_3dmodel[i]);
+	// 	}
+	// }
+	// for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
+	// 	double homotopy_coefficient = (double) j / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+	// 	printf("\nTargeted (x, y, z) coordinates of 3d model points in cm for homotopy coefficient %f:\n", homotopy_coefficient);
+	// 	gsl_vector* frame_vectors[NUM_OF_TRANSFORMED_VECTORS];
+	// 	for (int i = 0; i < NUM_OF_TRANSFORMED_VECTORS; i++) {
+	// 		frame_vectors[i] = transformed_3dmodel_frames[i][j];
+	// 	}
+	// 	print_3dmodel_coordinates(frame_vectors);
+	// }
 
-     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
-     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
-         lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
-     }
-     populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
-     printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
-     print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
+ //     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
+ //     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
+ //         lowest_possible_slider_coordinates[i] = gsl_vector_alloc(3);
+ //     }
+ //     populate_hexagon(lowest_possible_slider_coordinates, BASE_RADIUS, BASE_ANGLE);
+ //     printf("\nLowest possible slider coordinates (x, y, z) in cm:\n");
+ //     print_lowest_possible_slider_coordinates(lowest_possible_slider_coordinates, NUM_OF_HEXAGON_VERTICES);
 
+
+/////
 //   OptionSliderCoordinates maybe_sliders = find_slider_coordinates(transformed_3dmodel, lowest_possible_slider_coordinates);
 //   print_transformed_slider_coordinates(maybe_sliders);
 

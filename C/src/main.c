@@ -10,7 +10,6 @@
 #undef NDEBUG
 #include <assert.h>
 
-
 /// CONSTANTS THAT SHOULD NOT BE CHANGED
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
 const int NUM_OF_HEXAGON_VERTICES = 6;
@@ -20,7 +19,6 @@ const int NUM_OF_SLIDERS = 6;
 
 /// CONSTANTS THAT CAN BE CHANGED
 const int NUM_OF_HOMOTOPY_FRAMES = 3;
-
 const double NEEDLE_LENGTH = 3;
 const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
@@ -52,7 +50,7 @@ bool all_not_NULL(const OptionSliderCoordinates* options) {
     return true;
 }
 
-void print_coordinates(struct NeedleCoordinates table) {
+void print_needle_coordinates(struct NeedleCoordinates table) {
     printf("Linear coordinates (x, y, z) in cm:        (%f, %f, %f)\n", table.x, table.y, table.z);
     printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
 }
@@ -60,7 +58,7 @@ void print_coordinates(struct NeedleCoordinates table) {
 void print_matrix_4D(const gsl_matrix* m) {
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(m,i,j));
+            printf(j==3?"%9.6f\n":"%9.6f ", gsl_matrix_get(m,i,j));
 }
 
 void print_3dmodel_coordinates(gsl_vector* vectors[NUM_OF_TRANSFORMED_VECTORS]) {
@@ -121,7 +119,7 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
     printf("\n");
 }
 
-void populate_transformation_matrix(
+void set_transformation_matrix(
     gsl_matrix* T_1to2, // Place where final affine transformation matrix will be written
     const struct NeedleCoordinates state_1,
     const struct NeedleCoordinates state_2
@@ -187,39 +185,35 @@ void populate_transformation_matrix(
     printf("\nT_1to0, transformation matrix for (state_1) -> (0,0,0,0,0,0), an inverse of T_0to1\n");
     print_matrix_4D(T_1to0);
 
+
     //T_1to2 = T_0to2 * T_1to0
     gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, T_0to2, T_1to0,  0.0, T_1to2);
     printf("\nT_1to2, transformation matrix for (state_1) -> (state_2)\n");
     print_matrix_4D(T_1to2);
 }
 
-void populate_homotopy_frames(gsl_matrix** homotopy_frames, const gsl_matrix* T_1to2) {
-
-    gsl_matrix* Id = gsl_matrix_alloc(4, 4);
-    gsl_matrix_set_identity(Id);
-
+void set_homotopy_frames(gsl_matrix** homotopy_frames, const gsl_matrix* T_1to2) {
     for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
-		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
-		gsl_matrix_memcpy(homotopy_frames[i], T_1to2);
 		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
+		gsl_matrix *T = homotopy_frames[i];
+		gsl_matrix_memcpy(T, T_1to2);
 
-    	// Here we change affine transformation matrix T
-        // into (1-k)T + (k)Id, where k is the homotopy coefficient
-        gsl_matrix* temp_Id = gsl_matrix_alloc(4, 4);
-        gsl_matrix_memcpy(temp_Id, Id);
-        gsl_matrix_scale(temp_Id, homotopy_coefficient);
-        gsl_matrix_scale(homotopy_frames[i], 1.0 - homotopy_coefficient);
-        gsl_matrix_add(homotopy_frames[i], temp_Id);
+    	// Here we change affine transformation matrix T into
+        // (k)T + (1-k)Id, where k is the homotopy coefficient
+        gsl_matrix* Id = gsl_matrix_alloc(4, 4);
+        gsl_matrix_set_identity(Id);
+        gsl_matrix_scale(T, homotopy_coefficient);
+        gsl_matrix_scale(Id, 1.0 - homotopy_coefficient);
+        gsl_matrix_add(T, Id);
 
-        printf("\n(%.3f)T_1to2 + (%.3f)Id\n", (1-homotopy_coefficient), homotopy_coefficient);
-        for (int k = 0; k < 4; ++k)
-            for (int j = 0; j < 4; ++j)
-                printf(j==3?"%12.9f\n":"%12.9f ", gsl_matrix_get(homotopy_frames[i],k,j));
-	}
+        printf("\n(%.3f)T_1to2 + (%.3f)Id\n", (homotopy_coefficient), 1-homotopy_coefficient);
+	print_matrix_4D(T);
+    }
 }
 
 
-void populate_table_3dmodel (gsl_vector** coordinates) {
+void set_3dmodel (gsl_vector** coordinates) {
     double radius = TABLE_RADIUS;
     double angle_in_radians = TABLE_ANGLE;
     double distance_from_needle_end = NEEDLE_LENGTH;
@@ -259,9 +253,9 @@ void populate_table_3dmodel (gsl_vector** coordinates) {
     gsl_vector_set(coordinates[7], 2, 0.0);
 }
 
-// Used to populate both table and base coordinates.
+// Used to populate slider base coordinates.
 // Base coordinates are coordinates of sliders at their lowest possible position at rest.
-void populate_hexagon(
+void set_hexagon(
     gsl_vector** coordinates,
     const double radius,
     const double angle_in_radians) {
@@ -290,7 +284,7 @@ void populate_hexagon(
     gsl_vector_set(coordinates[5], 2, 0.0);
 }
 
-void populate_transformed_coordinates(
+void set_transformed_coordinates(
     gsl_vector* place_for_transformed_coordinates_in_3D,
     const gsl_matrix* transformation_matrix,
     const gsl_vector* initial_coordinates_in_3D) {
@@ -368,34 +362,23 @@ OptionSliderCoordinates find_slider_coordinates(
 // thus passing through set of incorrect configurations.
 // This movement can damage our mechanical system.
 
-void print_homotopy_frame(gsl_matrix* homotopy_frame) {
-    for (int row = 0; row < 4; ++row) {
-        for (int col = 0; col < 4; ++col) {
-            printf("%f ", gsl_matrix_get(homotopy_frame, row, col));
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
-
 int main(void) {
 	const struct NeedleCoordinates state_1 = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
 	const struct NeedleCoordinates state_2 = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
-    printf("\nNeedle coordinates, state 1: \n");
-	print_coordinates(state_1);
+	printf("\nNeedle coordinates, state 1: \n");
+	print_needle_coordinates(state_1);
 
 	printf("\nNeedle coordinates, state 2: \n");
-	print_coordinates(state_2);
+	print_needle_coordinates(state_2);
 
 	gsl_matrix* T = gsl_matrix_alloc(4, 4);
-	populate_transformation_matrix(T, state_1, state_2);
+	set_transformation_matrix(T, state_1, state_2);
 
 	// Homotopy Id->T where
 	// Id is the Identity transformation,
 	// T is the Transformation that brings (0, 0, 0, 0, 0 ,0) to the (targeted_needle_coordinates).
 	gsl_matrix* homotopy_frames[NUM_OF_HOMOTOPY_FRAMES];
-	populate_homotopy_frames(homotopy_frames, T);
+	set_homotopy_frames(homotopy_frames, T);
 
 	// Array of all vectors describing our 3D model.
 	// gsl_vector* initial_3dmodel[NUM_OF_TRANSFORMED_VECTORS];

@@ -1,3 +1,4 @@
-C/build/*
+*/build/*
+*.so
 */.ipynb_checkpoints/*
 .DS_Store

@@ -8,7 +8,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-gcc -fPIC -shared -o ../src/cpython.so ../src/main.c -lgsl -lgslcblas
+gcc -fPIC -shared -o ../cpython.so ../main.c -lgsl -lgslcblas
 if [ $? -ne 0 ]; then
     echo "C-Python compilation failed."
     exit 1

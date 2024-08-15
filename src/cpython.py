@@ -1,7 +1,7 @@
 import ctypes
 from ctypes import POINTER, c_double 
 
-clibrary = ctypes.CDLL("src/cpython.so")
+clibrary = ctypes.CDLL("cpython.so")
 
 clibrary.calculate_transformation_matrix.argtypes = [POINTER(c_double), POINTER(c_double)]
 clibrary.calculate_transformation_matrix.restype = POINTER(c_double)

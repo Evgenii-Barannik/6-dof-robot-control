@@ -20,7 +20,8 @@ const int NUM_OF_SLIDERS = 6;
 
 
 /// CONSTANTS THAT CAN BE CHANGED
-const int NUM_OF_HOMOTOPY_FRAMES = 3;
+/*const int NUM_OF_HOMOTOPY_FRAMES = 3;*/
+const double ACCURACY = 0.99; 
 const double NEEDLE_LENGTH = 3;
 const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
@@ -198,9 +199,9 @@ void set_transformation_matrix(
 	print_matrix_4D(T_1to2);
 }
 
-void set_homotopy_frames(gsl_matrix** homotopy_frames, const gsl_matrix* T) {
-	for (int i = 0; i < NUM_OF_HOMOTOPY_FRAMES; i++) {
-		double homotopy_coefficient = (double) i / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+void set_homotopy_frames(gsl_matrix** homotopy_frames, const gsl_matrix* T, const size_t num_of_homotopy_frames) {
+	for (int i = 0; i < num_of_homotopy_frames; i++) {
+		double homotopy_coefficient = (double) i / (double) (num_of_homotopy_frames-1);
 		homotopy_frames[i] = gsl_matrix_alloc(4, 4);
 		gsl_matrix *T_copy = homotopy_frames[i];
 		gsl_matrix_memcpy(T_copy, T);
@@ -362,42 +363,54 @@ OptionSliderCoordinates find_slider_coordinates(
     return maybe_slider_coordinates;
 }
 
-
-/// C-Python interface
- double* set_transformed_model(const double* state_1, const double* state_2, const double* model_for_state_1, double* model_for_state_2){
-     struct NeedleCoordinates state_1_struct = {state_1[0], state_1[1], state_1[2], state_1[3], state_1[4], state_1[5]};
-     struct NeedleCoordinates state_2_struct = {state_2[0], state_2[1], state_2[2], state_2[3], state_2[4], state_2[5]};
-
-     gsl_matrix* T_1to2 = gsl_matrix_alloc(4, 4);
-     set_transformation_matrix(T_1to2, state_1_struct, state_2_struct);
-
-     return T_1to2->data;
- }
-///
-
-
-// Below is an example of how damage during solution switching may occur.
-// Damage during solution switching appears unlikely when considering only one solution.
-// However, it becomes possible when both solutions are calculated simultaneously.
-// Lets imagine that for given targeted table coordinates there are
-// two possible positions (lower and higher ones) for each of our 6 sliders.
-// Lets imagine that each slider is present in its higher possible position.
-// Lets now imagine that for new targeted table coordinates our slider #3
-// has only one possible solution left (lower one).
-// So the higher solution is now impossible, but the lower one is still possible.
-// If we are not forcing each slider step to be infinitely small,
-// our system may decide that slider #3 should now switch to the lower position,
-// thus passing through set of incorrect configurations.
-// This movement can damage our mechanical system.
-
 typedef gsl_matrix HomotopyFrame;
 typedef gsl_vector* Model[NUM_OF_VECTORS];
 
+/// C-Python interface
+/* double** set_transformed_model(const double* state_1, const double* state_2, const double* model_for_state_1, const size_t num_of_homotopy_frames){*/
+/*     struct NeedleCoordinates state_1_struct = {state_1[0], state_1[1], state_1[2], state_1[3], state_1[4], state_1[5]};*/
+/*     struct NeedleCoordinates state_2_struct = {state_2[0], state_2[1], state_2[2], state_2[3], state_2[4], state_2[5]};*/
+/**/
+/*     gsl_matrix* T_1to2 = gsl_matrix_alloc(4, 4);*/
+/*     set_transformation_matrix(T_1to2, state_1_struct, state_2_struct);*/
+/**/
+/**/
+/**/
+/**/
+/*     return model_for_state_2;*/
+/* }*/
+/*///*/
+
+
+double targeted_velocity(const double progress, const double velocity_max) {
+	// Logistic curve is used:
+	// https://www.desmos.com/calculator/z8iodbso4f
+	assert(velocity_max >= 0.0);
+	assert(progress >= 0.0 && progress <= 1.0);
+	assert(ACCURACY >= 0.0 && ACCURACY <= 1.0);
+
+	double k = log((1.0-ACCURACY)/(ACCURACY));
+	double velocity = velocity_max/(1.0 + exp(k*(2.0*progress - 1.0)));
+	return velocity;
+}
+
+double targeted_acceleration(const double progress, const double velocity_max) {
+	// https://www.desmos.com/calculator/j0sgzmoqbj
+	assert(velocity_max >= 0.0);
+	assert(progress >= 0.0 && progress <= 1.0);
+	assert(ACCURACY >= 0.0 && ACCURACY <= 1.0);
+
+	double k = log((1.0-ACCURACY)/(ACCURACY));
+	double acceleration = -2*k*velocity_max * exp(k*(2.0*progress - 1.0)) / pow(exp(k*(2.0*progress - 1.0))+1, 2);
+	return acceleration;
+}
 
 int main(void) {
+	printf("%f", targeted_acceleration(0.5, 1.0));
+
 	const struct NeedleCoordinates initial_state = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
 	const struct NeedleCoordinates targeted_state = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
-
+	const size_t num_of_homotopy_frames = 5;
 	gsl_matrix* T = gsl_matrix_alloc(4, 4);
 	set_transformation_matrix(T, initial_state, targeted_state);
 
@@ -409,8 +422,8 @@ int main(void) {
 	// 	frame 0 is the Id;
 	//	frame 1 is 0.5 Id + 0.5 T;
 	//	frame 2 is the T;
-	HomotopyFrame* homotopy_frames[NUM_OF_HOMOTOPY_FRAMES];
-	set_homotopy_frames(homotopy_frames, T);
+	HomotopyFrame* homotopy_frames[num_of_homotopy_frames];
+	set_homotopy_frames(homotopy_frames, T, num_of_homotopy_frames);
 
 	// Array of pointers to vectors that describe initial 3D model.
 	// Model == [p_vec0, p_vec1, p_vec2, ...]
@@ -419,12 +432,12 @@ int main(void) {
 
 	// Each 3D modes is produced by applying one of transformations "in progress".
 	// models = [p_model0, p_model1, ...]
-	Model* models[NUM_OF_HOMOTOPY_FRAMES];
-	for (int j = 0; j < NUM_OF_HOMOTOPY_FRAMES; j++) {
+	Model* models[num_of_homotopy_frames];
+	for (int j = 0; j < num_of_homotopy_frames; j++) {
 		models[j] = malloc(sizeof(Model));
 		Model* model = models[j];
 		HomotopyFrame* frame = homotopy_frames[j];
-		double homotopy_coefficient = (double) j / (double) (NUM_OF_HOMOTOPY_FRAMES-1);
+		double homotopy_coefficient = (double) j / (double) (num_of_homotopy_frames-1);
 		printf("\nTargeted (x, y, z) coordinates of 3d model points in cm for homotopy coefficient %f:\n", homotopy_coefficient);
 			
 		for (int i = 0; i < NUM_OF_VECTORS; i++) {

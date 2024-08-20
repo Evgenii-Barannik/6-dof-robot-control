@@ -31,7 +31,7 @@ const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
 ///
 
 
-typedef gsl_vector* Model[NUM_OF_VECTORS];
+typedef gsl_vector* Model_3D[NUM_OF_VECTORS];
 
 struct NeedleCoordinates { // Full ideal description of the needle position, and thus, whole system.
     double x, y, z; // Coordinates of the needle end in cm.
@@ -123,84 +123,76 @@ void print_transformed_slider_coordinates(const OptionSliderCoordinates option) 
 }
 
 void set_transformation_matrix(
-    gsl_matrix* T_1to2, // Place where final affine transformation matrix will be written
-    const struct NeedleCoordinates state_1,
-    const struct NeedleCoordinates state_2
+    gsl_matrix* T_AB, // Place where final affine transformation matrix will be written
+    const struct NeedleCoordinates state_A,
+    const struct NeedleCoordinates state_B
     ) {
 	printf("\n────────── Transformation matrices ──────────");
-	printf("\nstate_1:\n");
-	print_needle_coordinates(state_1);
-	printf("\nstate_2:\n");
-	print_needle_coordinates(state_2);
+	printf("\nstate_A:\n");
+	print_needle_coordinates(state_A);
+	printf("\nstate_B:\n");
+	print_needle_coordinates(state_B);
 
-	gsl_matrix* T_0to2 = gsl_matrix_alloc(4, 4);
-	gsl_matrix_set(T_0to2, 0, 0, cos(state_2.psi) * cos(state_2.theta));
-	gsl_matrix_set(T_0to2, 0, 1, cos(state_2.psi) * sin(state_2.theta) * sin(state_2.phi) - sin(state_2.psi) * cos(state_2.phi));
-	gsl_matrix_set(T_0to2, 0, 2, cos(state_2.psi) * sin(state_2.theta) * cos(state_2.phi) + sin(state_2.psi) * sin(state_2.phi));
-	gsl_matrix_set(T_0to2, 0, 3, state_2.x);
+	gsl_matrix* T_0B = gsl_matrix_alloc(4, 4);
+	gsl_matrix_set(T_0B, 0, 0, cos(state_B.psi) * cos(state_B.theta));
+	gsl_matrix_set(T_0B, 0, 1, cos(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) - sin(state_B.psi) * cos(state_B.phi));
+	gsl_matrix_set(T_0B, 0, 2, cos(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) + sin(state_B.psi) * sin(state_B.phi));
+	gsl_matrix_set(T_0B, 0, 3, state_B.x);
+	gsl_matrix_set(T_0B, 1, 0, sin(state_B.psi) * cos(state_B.theta));
+	gsl_matrix_set(T_0B, 1, 1, sin(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) + cos(state_B.psi) * cos(state_B.phi));
+	gsl_matrix_set(T_0B, 1, 2, sin(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) - cos(state_B.psi) * sin(state_B.phi));
+	gsl_matrix_set(T_0B, 1, 3, state_B.y);
+	gsl_matrix_set(T_0B, 2, 0, -sin(state_B.theta));
+	gsl_matrix_set(T_0B, 2, 1, cos(state_B.theta) * sin(state_B.phi));
+	gsl_matrix_set(T_0B, 2, 2, cos(state_B.theta) * cos(state_B.phi));
+	gsl_matrix_set(T_0B, 2, 3, state_B.z);
+	gsl_matrix_set(T_0B, 3, 0, 0.0);
+	gsl_matrix_set(T_0B, 3, 1, 0.0);
+	gsl_matrix_set(T_0B, 3, 2, 0.0);
+	gsl_matrix_set(T_0B, 3, 3, 1.0);
+	printf("\nT_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B)\n");
+	print_matrix_4D(T_0B);
 
-	gsl_matrix_set(T_0to2, 1, 0, sin(state_2.psi) * cos(state_2.theta));
-	gsl_matrix_set(T_0to2, 1, 1, sin(state_2.psi) * sin(state_2.theta) * sin(state_2.phi) + cos(state_2.psi) * cos(state_2.phi));
-	gsl_matrix_set(T_0to2, 1, 2, sin(state_2.psi) * sin(state_2.theta) * cos(state_2.phi) - cos(state_2.psi) * sin(state_2.phi));
-	gsl_matrix_set(T_0to2, 1, 3, state_2.y);
+	gsl_matrix* T_0A = gsl_matrix_alloc(4, 4);
+	gsl_matrix_set(T_0A, 0, 0, cos(state_A.psi) * cos(state_A.theta));
+	gsl_matrix_set(T_0A, 0, 1, cos(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) - sin(state_A.psi) * cos(state_A.phi));
+	gsl_matrix_set(T_0A, 0, 2, cos(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) + sin(state_A.psi) * sin(state_A.phi));
+	gsl_matrix_set(T_0A, 0, 3, state_A.x);
+	gsl_matrix_set(T_0A, 0, 3, state_A.x);
+	gsl_matrix_set(T_0A, 1, 0, sin(state_A.psi) * cos(state_A.theta));
+	gsl_matrix_set(T_0A, 1, 1, sin(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) + cos(state_A.psi) * cos(state_A.phi));
+	gsl_matrix_set(T_0A, 1, 2, sin(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) - cos(state_A.psi) * sin(state_A.phi));
+	gsl_matrix_set(T_0A, 1, 3, state_A.y);
+	gsl_matrix_set(T_0A, 2, 0, -sin(state_A.theta));
+	gsl_matrix_set(T_0A, 2, 1, cos(state_A.theta) * sin(state_A.phi));
+	gsl_matrix_set(T_0A, 2, 2, cos(state_A.theta) * cos(state_A.phi));
+	gsl_matrix_set(T_0A, 2, 3, state_A.z);
+	gsl_matrix_set(T_0A, 3, 0, 0.0);
+	gsl_matrix_set(T_0A, 3, 1, 0.0);
+	gsl_matrix_set(T_0A, 3, 2, 0.0);
+	gsl_matrix_set(T_0A, 3, 3, 1.0);
+	printf("\nT_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A)\n");
+	print_matrix_4D(T_0A);
 
-	gsl_matrix_set(T_0to2, 2, 0, -sin(state_2.theta));
-	gsl_matrix_set(T_0to2, 2, 1, cos(state_2.theta) * sin(state_2.phi));
-	gsl_matrix_set(T_0to2, 2, 2, cos(state_2.theta) * cos(state_2.phi));
-	gsl_matrix_set(T_0to2, 2, 3, state_2.z);
-
-	gsl_matrix_set(T_0to2, 3, 0, 0.0);
-	gsl_matrix_set(T_0to2, 3, 1, 0.0);
-	gsl_matrix_set(T_0to2, 3, 2, 0.0);
-	gsl_matrix_set(T_0to2, 3, 3, 1.0);
-	printf("\nT_0to2, transformation matrix for (0,0,0,0,0,0) -> (state_2)\n");
-	print_matrix_4D(T_0to2);
-
-
-	gsl_matrix* T_0to1 = gsl_matrix_alloc(4, 4);
-	gsl_matrix_set(T_0to1, 0, 0, cos(state_1.psi) * cos(state_1.theta));
-	gsl_matrix_set(T_0to1, 0, 1, cos(state_1.psi) * sin(state_1.theta) * sin(state_1.phi) - sin(state_1.psi) * cos(state_1.phi));
-	gsl_matrix_set(T_0to1, 0, 2, cos(state_1.psi) * sin(state_1.theta) * cos(state_1.phi) + sin(state_1.psi) * sin(state_1.phi));
-	gsl_matrix_set(T_0to1, 0, 3, state_1.x);
-
-	gsl_matrix_set(T_0to1, 1, 0, sin(state_1.psi) * cos(state_1.theta));
-	gsl_matrix_set(T_0to1, 1, 1, sin(state_1.psi) * sin(state_1.theta) * sin(state_1.phi) + cos(state_1.psi) * cos(state_1.phi));
-	gsl_matrix_set(T_0to1, 1, 2, sin(state_1.psi) * sin(state_1.theta) * cos(state_1.phi) - cos(state_1.psi) * sin(state_1.phi));
-	gsl_matrix_set(T_0to1, 1, 3, state_1.y);
-
-	gsl_matrix_set(T_0to1, 2, 0, -sin(state_1.theta));
-	gsl_matrix_set(T_0to1, 2, 1, cos(state_1.theta) * sin(state_1.phi));
-	gsl_matrix_set(T_0to1, 2, 2, cos(state_1.theta) * cos(state_1.phi));
-	gsl_matrix_set(T_0to1, 2, 3, state_1.z);
-
-	gsl_matrix_set(T_0to1, 3, 0, 0.0);
-	gsl_matrix_set(T_0to1, 3, 1, 0.0);
-	gsl_matrix_set(T_0to1, 3, 2, 0.0);
-	gsl_matrix_set(T_0to1, 3, 3, 1.0);
-	printf("\nT_0to1, transformation matrix for (0,0,0,0,0,0) -> (state_1)\n");
-	print_matrix_4D(T_0to1);
-
-
-	gsl_matrix* T_0to1_temp = gsl_matrix_alloc(4, 4);
-	gsl_matrix_memcpy(T_0to1_temp, T_0to1);
-
-	gsl_permutation * p = gsl_permutation_alloc(4);
-	gsl_matrix* T_1to0 = gsl_matrix_alloc(4, 4);
 	int signum;
-	gsl_linalg_LU_decomp (T_0to1_temp, p, &signum);
-	gsl_linalg_LU_invert (T_0to1_temp, p, T_1to0);
+	gsl_permutation * p = gsl_permutation_alloc(4);
+	gsl_matrix* T_A0 = gsl_matrix_alloc(4, 4);
+	gsl_matrix* T_0A_temp = gsl_matrix_alloc(4, 4);
+	gsl_matrix_memcpy(T_0A_temp, T_0A);
+	gsl_linalg_LU_decomp (T_0A_temp, p, &signum);
+	gsl_linalg_LU_invert (T_0A_temp, p, T_A0);
+	printf("\nT_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of T_0A\n");
+	print_matrix_4D(T_A0);
 	gsl_permutation_free(p);
-	printf("\nT_1to0, transformation matrix for (state_1) -> (0,0,0,0,0,0), an inverse of T_0to1\n");
-	print_matrix_4D(T_1to0);
 
-	// T_1to2 = T_0to2 * (T_0t1)^(-1)
-	// T_1to2 = T_0to2 * T_1to0
-	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, T_0to2, T_1to0,  0.0, T_1to2);
-	printf("\nT_1to2, transformation matrix for (state_1) -> (state_2)\n");
-	print_matrix_4D(T_1to2);
+	// T_AB = T_0B * (T_0A)^(-1)
+	// T_AB = T_0B * T_A0
+	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, T_0B, T_A0,  0.0, T_AB);
+	printf("\nT_AB, transformation matrix for (state_A) -> (state_B)\n");
+	print_matrix_4D(T_AB);
 }
 
-void set_transformation_frames(gsl_matrix** transformation_frames, const gsl_matrix* T, const size_t num_of_frames) {
+void set_sequence(gsl_matrix** transformation_frames, const gsl_matrix* T, const size_t num_of_frames) {
 	printf("\n────────── Homotopy frames ──────────");
 	for (int i = 0; i < num_of_frames; i++) {
 		double homotopy_coefficient = (double) i / (double) (num_of_frames-1);
@@ -216,13 +208,13 @@ void set_transformation_frames(gsl_matrix** transformation_frames, const gsl_mat
 		gsl_matrix_scale(Id, 1.0 - homotopy_coefficient);
 		gsl_matrix_add(T_copy, Id);
 
-		printf("\n(%.3f)T_1to2 + (%.3f)Id\n", (homotopy_coefficient), 1-homotopy_coefficient);
+		printf("\n(%.3f)T + (%.3f)Id\n", (homotopy_coefficient), 1-homotopy_coefficient);
 		print_matrix_4D(T_copy);
 	}
 }
 
 
-void set_model_for_zero_state (gsl_vector** vecs) {
+void set_model_in_state_0 (gsl_vector** vecs) {
 	for (int i = 0; i < NUM_OF_VECTORS; i++) {
 		vecs[i] = gsl_vector_alloc(3);
 	}
@@ -383,11 +375,11 @@ double targeted_acceleration(const double progress, const double velocity_max) {
 	return acceleration;
 }
 
-void set_transformed_model(Model* place_for_transformed_3dmodel, const gsl_matrix* T, const Model initial_3dmodel ){
+void set_transformed_model(Model_3D place_for_transformed_model, const gsl_matrix* T, const Model_3D initial_model ){
 	for (int i = 0; i < NUM_OF_VECTORS; i++) {
-		(*place_for_transformed_3dmodel)[i] = gsl_vector_alloc(3);
-		const gsl_vector* initial_vec_in_3D = initial_3dmodel[i];
-		gsl_vector* place_for_transformed_vec_in_3D = (*place_for_transformed_3dmodel)[i];
+		place_for_transformed_model[i] = gsl_vector_alloc(3);
+		const gsl_vector* initial_vec_in_3D = initial_model[i];
+		gsl_vector* place_for_transformed_vec_in_3D = place_for_transformed_model[i];
 
 		// Uplifting to 4D
 		gsl_vector* initial_vec_in_4D = gsl_vector_alloc(4);
@@ -410,55 +402,58 @@ void set_transformed_model(Model* place_for_transformed_3dmodel, const gsl_matri
 	}
 }
 
-void set_model_frames(gsl_matrix** T_frames, size_t num_of_frames, Model initial_3dmodel, Model** model_frames) {
-	for (int j = 0; j < num_of_frames; j++) {
-		model_frames[j] = malloc(sizeof(Model));
-		Model* model = model_frames[j];
-		gsl_matrix* T = T_frames[j];
-		double homotopy_coefficient = (double) j / (double) (num_of_frames-1);
+void set_model_sequence(Model_3D* model_sequence, gsl_matrix** T_sequence, size_t sequence_length, Model_3D initial_model) {
+	for (int j = 0; j < sequence_length; j++) {
+		for (int i = 0; i < NUM_OF_VECTORS; i++) {
+			model_sequence[j][i] = gsl_vector_alloc(3);
+		}
+		Model_3D* current_model = &model_sequence[j];
+		gsl_matrix* T = T_sequence[j];
+		double homotopy_coefficient = (double) j / (double) (sequence_length-1);
 
-		set_transformed_model(model, T, initial_3dmodel);
+		set_transformed_model(*current_model, T, initial_model);
 		printf("\nTargeted (x, y, z) coordinates of 3d model points in cm for homotopy coefficient %f:\n", homotopy_coefficient);
-		print_model(*model);
+		print_model(*current_model);
 	}
+
 
 }
 int main(void) {
-	const struct NeedleCoordinates zero_state = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	const struct NeedleCoordinates initial_state = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
-	const struct NeedleCoordinates targeted_state = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
+	const struct NeedleCoordinates state_0 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	const struct NeedleCoordinates state_A = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
+	const struct NeedleCoordinates state_B = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
 
-	gsl_matrix* T_0i = gsl_matrix_alloc(4, 4);
-	set_transformation_matrix(T_0i, zero_state, initial_state);
+	gsl_matrix* T_0A = gsl_matrix_alloc(4, 4);
+	set_transformation_matrix(T_0A, state_0, state_A);
 
-	gsl_matrix* T_it = gsl_matrix_alloc(4, 4);
-	set_transformation_matrix(T_it, initial_state, targeted_state);
+	gsl_matrix* T_AB = gsl_matrix_alloc(4, 4);
+	set_transformation_matrix(T_AB, state_A, state_B);
 
 	// Transformation frames are descibed using homotopy Id->T
 	// First frame is the the identity transformation (Id).
-	// Last frame is the full transformation (T), which brings (initial_state) to the (targeted_state).
-	// Other frames are created by mixing T and Id, they describe affine transformation that is "in progress".
-	// Example for case with 3 frames in total:
+	// Last frame is the full transformation (T_AB), which brings (state_A) to the (state_B).
+	// Other frames are created by mixing T_AB and Id, those frames describe transformation that is "in progress".
+	// Example for the case with 3 frames:
 	// 	frame 0 is the Id;
-	//	frame 1 is 0.5 Id + 0.5 T;
-	//	frame 2 is the T;
-	const size_t num_of_frames = 5;
-	gsl_matrix* T_it_frames[num_of_frames];
-	set_transformation_frames(T_it_frames, T_it, num_of_frames);
+	//	frame 1 is 0.5 Id + 0.5 T_AB;
+	//	frame 2 is the T_AB;
+	const size_t sequence_lenth = 5;
+	gsl_matrix* T_Sequence[sequence_lenth];
+	set_sequence(T_Sequence, T_AB, sequence_lenth);
 
 	// Array of pointers to vectors that describe 3D model in zero state ({0, 0, 0, 0, 0, 0} state)
-	// Model == [p_vec0, p_vec1, p_vec2, ...]
-	Model model_for_zero_state;
-	set_model_for_zero_state(model_for_zero_state);
+	// Model_3D == [p_vec0, p_vec1, p_vec2, ...]
+	Model_3D model_in_state_0;
+	set_model_in_state_0(model_in_state_0);
 
 	// Array of pointers to vectors that describe 3D model in initial state.
-	Model model_for_initial_state;
-	set_transformed_model(&model_for_initial_state, T_0i, model_for_zero_state);
+	Model_3D model_in_state_A;
+	set_transformed_model(model_in_state_A, T_0A, model_in_state_0);
 
 	// Each 3D model is produced by applying one of transformations "in progress" to the 3D model for initial state.
 	// models = [p_model0, p_model1, ...]
-	Model* model_frames[num_of_frames];
-	set_model_frames(T_it_frames, num_of_frames, model_for_initial_state, model_frames);
+	Model_3D model_sequence[sequence_lenth];
+	set_model_sequence(model_sequence, T_Sequence, sequence_lenth, model_in_state_A);
 
  //     gsl_vector* lowest_possible_slider_coordinates[NUM_OF_HEXAGON_VERTICES];
  //     for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {

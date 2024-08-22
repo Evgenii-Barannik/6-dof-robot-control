@@ -14,4 +14,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./meson-src/6dof
+chmod +x ./meson-src/6dof
+./meson-src/6dof | tee ../output.txt  

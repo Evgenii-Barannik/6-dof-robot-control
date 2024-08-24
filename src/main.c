@@ -3,6 +3,7 @@
 #include <math.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
+#include <string.h>
 
 // Ensures that assertions are not disabled
 #undef NDEBUG
@@ -30,10 +31,10 @@ const double MIN_POSSIBLE_HEIGHT = 0; // Lowest possible position for sliders in
 const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
 ///
 
-struct NeedleCoordinates { // Full ideal description of the needle position, and thus, whole system.
+typedef struct { // Full ideal description of the needle position, and thus, whole system.
 	double x, y, z; // Coordinates of the needle end in cm.
 	double phi, theta, psi; // Euler angles for the needle in radians.
-};
+} NeedleCoordinates;
 
 typedef struct {
     gsl_vector* coordinates[NUM_OF_VECTORS];
@@ -45,6 +46,11 @@ typedef struct {
     gsl_vector* coordinates[NUM_OF_SLIDERS];
 } Sliders_Model_Nullable;
 
+typedef struct{
+	Table_Model* table; 
+	Sliders_Model_Nullable* sliders; 
+} Frames;
+
 bool all_not_NULL(const Sliders_Model_Nullable sliders) {
     for (int i = 0; i < NUM_OF_SLIDERS; ++i) {
         gsl_vector* vec_p = sliders.coordinates[i];
@@ -55,7 +61,7 @@ bool all_not_NULL(const Sliders_Model_Nullable sliders) {
     return true;
 }
 
-void print_needle_coordinates(struct NeedleCoordinates table) {
+void print_needle_coordinates(NeedleCoordinates table) {
     printf("Linear coordinates (x, y, z) in cm:        (%f, %f, %f)\n", table.x, table.y, table.z);
     printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
 }
@@ -114,8 +120,8 @@ void print_transformed_slider_coordinates(const Sliders_Model_Nullable* slider_f
 }
 
 gsl_matrix* get_transformation_matrix(
-    const struct NeedleCoordinates state_A,
-    const struct NeedleCoordinates state_B
+    const NeedleCoordinates state_A,
+    const NeedleCoordinates state_B
     ) {
 	printf("\n==== Transformation matrices for transition between state_A and state_B");
 	printf("\n==== state_A:\n");
@@ -317,7 +323,7 @@ Sliders_Model_Nullable* find_sliders(const Table_Model table_transformed_vecs, c
 	return sliders;
 }
 
-bool set_sliders_frames(
+void set_sliders_frames(
 		Sliders_Model_Nullable* slider_frames,
 		const size_t num_of_frames,
 		const Table_Model* table_frames,
@@ -329,30 +335,13 @@ bool set_sliders_frames(
 		Sliders_Model_Nullable* sliders_for_this_frame = find_sliders(table_for_this_frame, sliders_in_state_0);
 		slider_frames[j] = *sliders_for_this_frame;
 	}
-	return true;
 }
 
-//typedef gsl_m?atrix gsl_matrix;
-
-/// C-Python interface
-/* double** set_transformed_model(const double* state_1, const double* state_2, const double* model_for_state_1, const size_t num_of_homotopy_frames){*/
-/*     struct NeedleCoordinates state_1_struct = {state_1[0], state_1[1], state_1[2], state_1[3], state_1[4], state_1[5]};*/
-/*     struct NeedleCoordinates state_2_struct = {state_2[0], state_2[1], state_2[2], state_2[3], state_2[4], state_2[5]};*/
-/**/
-/*     gsl_matrix* T_1to2 = gsl_matrix_alloc(4, 4);*/
-/*     set_transformation_matrix(T_1to2, state_1_struct, state_2_struct);*/
-/**/
-/**/
-/**/
-/**/
-/*     return model_for_state_2;*/
-/* }*/
-/*///*/
 
 
-double targeted_velocity(const double progress, const double velocity_max) {
+double get_velocity(const double progress, const double velocity_max) {
 	// Logistic curve is used:
-	// https://www.desmos.com/calculator/z8iodbso4f
+	// https://www.desmos.com/calculator/j0sgzmoqbj
 	assert(velocity_max > 0.0);
 	assert(ACCURACY > 0.0 && ACCURACY < 1.0);
 	assert(progress >= 0.0 && progress <= 1.0);
@@ -362,7 +351,8 @@ double targeted_velocity(const double progress, const double velocity_max) {
 	return velocity;
 }
 
-double targeted_acceleration(const double progress, const double velocity_max) {
+double get_acceleration(const double progress, const double velocity_max) {
+	// Logistic curve is used:
 	// https://www.desmos.com/calculator/j0sgzmoqbj
 	assert(velocity_max > 0.0);
 	assert(ACCURACY > 0.0 && ACCURACY < 1.0);
@@ -412,14 +402,15 @@ void set_model_frames(Table_Model* model_frames, const size_t num_of_frames, con
 	}
 }
 
-int main(void) {
-	const struct NeedleCoordinates state_0 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	const struct NeedleCoordinates state_A = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
-	const struct NeedleCoordinates state_B = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
+/// C-Python interface
 
-	gsl_matrix* T_0A = get_transformation_matrix(state_0, state_A);
-	gsl_matrix* T_AB = get_transformation_matrix(state_A, state_B);
 
+Frames* get_frames(NeedleCoordinates state_A, NeedleCoordinates state_B, const size_t num_of_frames) {
+	assert(num_of_frames >= 2);
+	const NeedleCoordinates state_0 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	const gsl_matrix* T_0A = get_transformation_matrix(state_0, state_A);
+	const gsl_matrix* T_AB = get_transformation_matrix(state_A, state_B);
+	
 	// Struct with array of pointers to vectors that describe Table 3D model in state_0 ({0, 0, 0, 0, 0, 0} state)
 	Table_Model model_in_state_0 = *get_model_in_state_0();
 
@@ -437,17 +428,73 @@ int main(void) {
 	// 	frame 0 is the Id;
 	//	frame 1 is 0.5 Id + 0.5 T_AB;
 	//	frame 2 is the T_AB;
-	const size_t num_of_frames = 3;
 	gsl_matrix* T_frames[num_of_frames];
 	set_transformation_frames(T_frames, T_AB, num_of_frames);
 
 	// Each 3D model is produced by applying one of transformations "in progress" to the 3D model for initial state.
-	Table_Model model_frames[num_of_frames];
-	set_model_frames(model_frames, num_of_frames, (const gsl_matrix**) T_frames, model_in_state_A);
+	Table_Model table_frames[num_of_frames];
+	set_model_frames(table_frames, num_of_frames, (const gsl_matrix**) T_frames, model_in_state_A);
 
 	Sliders_Model_Nullable slider_frames[num_of_frames];
-	(void) set_sliders_frames(slider_frames, num_of_frames, model_frames, sliders_in_state_0);
+	set_sliders_frames(slider_frames, num_of_frames, table_frames, sliders_in_state_0);
 	print_transformed_slider_coordinates(slider_frames, num_of_frames);
+
+	Frames* f = (Frames*)malloc(sizeof(Frames));
+	f->table = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
+	f->sliders = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
+	memcpy(f->table, table_frames, num_of_frames * sizeof(Table_Model));
+	memcpy(f->sliders, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
+
+	return f;
+}
+
+// Python - C interface
+bool set_frames_py(
+		double* table_x,
+		double* table_y,
+		double* table_z,
+		double* slider_x,
+		double* slider_y,
+		double* slider_z,
+		const double* state_1,
+		const double* state_2,
+		const size_t num_of_frames
+){
+	const NeedleCoordinates state_A = {state_1[0], state_1[1], state_1[2], state_1[3], state_1[4], state_1[5]};
+	const NeedleCoordinates state_B = {state_2[0], state_2[1], state_2[2], state_2[3], state_2[4], state_2[5]};
+
+	const Frames* frames = get_frames(state_A, state_B, num_of_frames);
+	
+	bool success = true;
+	for (size_t i = 0; i < num_of_frames; ++i) {
+		for (int j = 0; j < NUM_OF_VECTORS; ++j) {
+			table_x[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 0);
+			table_y[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 1);
+			table_z[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 2);
+		}
+		for (int k = 0; k < NUM_OF_SLIDERS; ++k) {
+			if (frames->sliders[i].coordinates[k] != NULL) {
+				slider_x[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 0);
+				slider_y[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 1);
+				slider_z[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 2);
+			} else {
+				slider_x[i * NUM_OF_SLIDERS + k] = NAN;
+				slider_y[i * NUM_OF_SLIDERS + k] = NAN;
+				slider_z[i * NUM_OF_SLIDERS + k] = NAN;
+				success = false;
+			}
+		}
+	}
+	return success;
+}
+
+
+int main(void) {
+	const NeedleCoordinates state_A = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
+	const NeedleCoordinates state_B = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
+	const size_t num_of_frames = 4;
+
+	(void) get_frames(state_A, state_B, num_of_frames);
 
 	return 0;
 }

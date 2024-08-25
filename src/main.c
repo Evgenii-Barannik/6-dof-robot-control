@@ -490,9 +490,9 @@ bool set_frames_py(
 
 
 int main(void) {
-	const NeedleCoordinates state_A = {0.0, 0.0, 0.0, -M_PI/10, M_PI/10, M_PI/10};
-	const NeedleCoordinates state_B = {0.5, 0.5, 3.0, -M_PI/10, M_PI/10, M_PI/10};
-	const size_t num_of_frames = 4;
+	const NeedleCoordinates state_A = {-2.58, 1.77, 1.94, 0.71, 1.22, 0.47};
+	const NeedleCoordinates state_B = {0.0, -1.45, -2.58, 0.20, -0.61, -0.41};
+	const size_t num_of_frames = 10;
 
 	(void) get_frames(state_A, state_B, num_of_frames);
 

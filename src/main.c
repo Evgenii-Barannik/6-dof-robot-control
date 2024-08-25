@@ -5,10 +5,10 @@
 #include <gsl/gsl_linalg.h>
 #include <string.h>
 
-// Ensures that assertions are not disabled
+/// Ensures that assertions are not disabled
 #undef NDEBUG
 #include <assert.h>
-
+///
 
 /// CONSTANTS THAT SHOULD NOT BE CHANGED
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
@@ -17,21 +17,19 @@ const int NUM_OF_VECTORS = NUM_OF_HEXAGON_VERTICES + 2;
 const int NUM_OF_SLIDERS = 6;
 ///
 
-
 /// CONSTANTS THAT CAN BE CHANGED
-/*const int NUM_OF_HOMOTOPY_FRAMES = 3;*/
-const double ACCURACY = 0.99; 
-const double NEEDLE_LENGTH = 3;
-const double TABLE_RADIUS = 3.0; // Radius of the hexagonal table in cm.
+const double NEEDLE_LENGTH = 3.0;
+const double TABLE_RADIUS = 2.5; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
 const double BASE_RADIUS = 7.0; // Radius of the hexagonal base in cm.
 const double BASE_ANGLE = DEGREES_TO_RADIANS * 15; // Angle between vertices of the hexagonal base in radians. A regular hexagon will have 60 deg.
-const double MAX_POSSIBLE_HEIGHT = 15.0; // Highest possible position for sliders in cm.
+const double MAX_POSSIBLE_HEIGHT = 20.0; // Highest possible position for sliders in cm.
 const double MIN_POSSIBLE_HEIGHT = 0; // Lowest possible position for sliders in cm.
 const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
+const double DYNAMIC_ACCURACY = 0.99;  // should be between 0.0 and 1.0 
 ///
 
-typedef struct { // Full ideal description of the needle position, and thus, whole system.
+typedef struct { // Full description of the needle position, and thus, whole system (ideally).
 	double x, y, z; // Coordinates of the needle end in cm.
 	double phi, theta, psi; // Euler angles for the needle in radians.
 } NeedleCoordinates;
@@ -129,133 +127,160 @@ gsl_matrix* get_transformation_matrix(
 	printf("\n==== state_B:\n");
 	print_needle_coordinates(state_B);
 
-	gsl_matrix* T_0B = gsl_matrix_alloc(4, 4);
-	gsl_matrix_set(T_0B, 0, 0, cos(state_B.psi) * cos(state_B.theta));
-	gsl_matrix_set(T_0B, 0, 1, cos(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) - sin(state_B.psi) * cos(state_B.phi));
-	gsl_matrix_set(T_0B, 0, 2, cos(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) + sin(state_B.psi) * sin(state_B.phi));
-	gsl_matrix_set(T_0B, 0, 3, state_B.x);
-	gsl_matrix_set(T_0B, 1, 0, sin(state_B.psi) * cos(state_B.theta));
-	gsl_matrix_set(T_0B, 1, 1, sin(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) + cos(state_B.psi) * cos(state_B.phi));
-	gsl_matrix_set(T_0B, 1, 2, sin(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) - cos(state_B.psi) * sin(state_B.phi));
-	gsl_matrix_set(T_0B, 1, 3, state_B.y);
-	gsl_matrix_set(T_0B, 2, 0, -sin(state_B.theta));
-	gsl_matrix_set(T_0B, 2, 1, cos(state_B.theta) * sin(state_B.phi));
-	gsl_matrix_set(T_0B, 2, 2, cos(state_B.theta) * cos(state_B.phi));
-	gsl_matrix_set(T_0B, 2, 3, state_B.z);
-	gsl_matrix_set(T_0B, 3, 0, 0.0);
-	gsl_matrix_set(T_0B, 3, 1, 0.0);
-	gsl_matrix_set(T_0B, 3, 2, 0.0);
-	gsl_matrix_set(T_0B, 3, 3, 1.0);
-	printf("\n==== T_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):\n");
-	print_matrix_4D(T_0B);
+	gsl_matrix* M_0B = gsl_matrix_alloc(4, 4);
+	gsl_matrix_set(M_0B, 0, 0, cos(state_B.psi) * cos(state_B.theta));
+	gsl_matrix_set(M_0B, 0, 1, cos(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) - sin(state_B.psi) * cos(state_B.phi));
+	gsl_matrix_set(M_0B, 0, 2, cos(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) + sin(state_B.psi) * sin(state_B.phi));
+	gsl_matrix_set(M_0B, 0, 3, state_B.x);
+	gsl_matrix_set(M_0B, 1, 0, sin(state_B.psi) * cos(state_B.theta));
+	gsl_matrix_set(M_0B, 1, 1, sin(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) + cos(state_B.psi) * cos(state_B.phi));
+	gsl_matrix_set(M_0B, 1, 2, sin(state_B.psi) * sin(state_B.theta) * cos(state_B.phi) - cos(state_B.psi) * sin(state_B.phi));
+	gsl_matrix_set(M_0B, 1, 3, state_B.y);
+	gsl_matrix_set(M_0B, 2, 0, -sin(state_B.theta));
+	gsl_matrix_set(M_0B, 2, 1, cos(state_B.theta) * sin(state_B.phi));
+	gsl_matrix_set(M_0B, 2, 2, cos(state_B.theta) * cos(state_B.phi));
+	gsl_matrix_set(M_0B, 2, 3, state_B.z);
+	gsl_matrix_set(M_0B, 3, 0, 0.0);
+	gsl_matrix_set(M_0B, 3, 1, 0.0);
+	gsl_matrix_set(M_0B, 3, 2, 0.0);
+	gsl_matrix_set(M_0B, 3, 3, 1.0);
+	printf("\n==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):\n");
+	print_matrix_4D(M_0B);
 
-	gsl_matrix* T_0A = gsl_matrix_alloc(4, 4);
-	gsl_matrix_set(T_0A, 0, 0, cos(state_A.psi) * cos(state_A.theta));
-	gsl_matrix_set(T_0A, 0, 1, cos(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) - sin(state_A.psi) * cos(state_A.phi));
-	gsl_matrix_set(T_0A, 0, 2, cos(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) + sin(state_A.psi) * sin(state_A.phi));
-	gsl_matrix_set(T_0A, 0, 3, state_A.x);
-	gsl_matrix_set(T_0A, 0, 3, state_A.x);
-	gsl_matrix_set(T_0A, 1, 0, sin(state_A.psi) * cos(state_A.theta));
-	gsl_matrix_set(T_0A, 1, 1, sin(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) + cos(state_A.psi) * cos(state_A.phi));
-	gsl_matrix_set(T_0A, 1, 2, sin(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) - cos(state_A.psi) * sin(state_A.phi));
-	gsl_matrix_set(T_0A, 1, 3, state_A.y);
-	gsl_matrix_set(T_0A, 2, 0, -sin(state_A.theta));
-	gsl_matrix_set(T_0A, 2, 1, cos(state_A.theta) * sin(state_A.phi));
-	gsl_matrix_set(T_0A, 2, 2, cos(state_A.theta) * cos(state_A.phi));
-	gsl_matrix_set(T_0A, 2, 3, state_A.z);
-	gsl_matrix_set(T_0A, 3, 0, 0.0);
-	gsl_matrix_set(T_0A, 3, 1, 0.0);
-	gsl_matrix_set(T_0A, 3, 2, 0.0);
-	gsl_matrix_set(T_0A, 3, 3, 1.0);
-	printf("\n==== T_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):\n");
-	print_matrix_4D(T_0A);
+	gsl_matrix* M_0A = gsl_matrix_alloc(4, 4);
+	gsl_matrix_set(M_0A, 0, 0, cos(state_A.psi) * cos(state_A.theta));
+	gsl_matrix_set(M_0A, 0, 1, cos(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) - sin(state_A.psi) * cos(state_A.phi));
+	gsl_matrix_set(M_0A, 0, 2, cos(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) + sin(state_A.psi) * sin(state_A.phi));
+	gsl_matrix_set(M_0A, 0, 3, state_A.x);
+	gsl_matrix_set(M_0A, 0, 3, state_A.x);
+	gsl_matrix_set(M_0A, 1, 0, sin(state_A.psi) * cos(state_A.theta));
+	gsl_matrix_set(M_0A, 1, 1, sin(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) + cos(state_A.psi) * cos(state_A.phi));
+	gsl_matrix_set(M_0A, 1, 2, sin(state_A.psi) * sin(state_A.theta) * cos(state_A.phi) - cos(state_A.psi) * sin(state_A.phi));
+	gsl_matrix_set(M_0A, 1, 3, state_A.y);
+	gsl_matrix_set(M_0A, 2, 0, -sin(state_A.theta));
+	gsl_matrix_set(M_0A, 2, 1, cos(state_A.theta) * sin(state_A.phi));
+	gsl_matrix_set(M_0A, 2, 2, cos(state_A.theta) * cos(state_A.phi));
+	gsl_matrix_set(M_0A, 2, 3, state_A.z);
+	gsl_matrix_set(M_0A, 3, 0, 0.0);
+	gsl_matrix_set(M_0A, 3, 1, 0.0);
+	gsl_matrix_set(M_0A, 3, 2, 0.0);
+	gsl_matrix_set(M_0A, 3, 3, 1.0);
+	printf("\n==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):\n");
+	print_matrix_4D(M_0A);
 
 	int signum;
 	gsl_permutation * p = gsl_permutation_alloc(4);
-	gsl_matrix* T_A0 = gsl_matrix_alloc(4, 4);
-	gsl_matrix* T_0A_temp = gsl_matrix_alloc(4, 4);
-	gsl_matrix_memcpy(T_0A_temp, T_0A);
-	gsl_linalg_LU_decomp (T_0A_temp, p, &signum);
-	gsl_linalg_LU_invert (T_0A_temp, p, T_A0);
-	printf("\n==== T_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of T_0A:\n");
-	print_matrix_4D(T_A0);
+	gsl_matrix* M_A0 = gsl_matrix_alloc(4, 4);
+	gsl_matrix* M_0A_temp = gsl_matrix_alloc(4, 4);
+	gsl_matrix_memcpy(M_0A_temp, M_0A);
+	gsl_linalg_LU_decomp (M_0A_temp, p, &signum);
+	gsl_linalg_LU_invert (M_0A_temp, p, M_A0);
+	printf("\n==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:\n");
+	print_matrix_4D(M_A0);
 	gsl_permutation_free(p);
 
-	// T_AB = T_0B * (T_0A)^(-1)
-	// T_AB = T_0B * T_A0
-	gsl_matrix* T_AB = gsl_matrix_alloc(4, 4);
-	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, T_0B, T_A0,  0.0, T_AB);
-	printf("\n==== T_AB, transformation matrix for (state_A) -> (state_B):\n");
-	print_matrix_4D(T_AB);
+	// M_AB = M_0B * (M_0A)^(-1)
+	// M_AB = M_0B * M_A0
+	gsl_matrix* M_AB = gsl_matrix_alloc(4, 4);
+	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, M_0B, M_A0,  0.0, M_AB);
+	printf("\n==== M_AB, transformation matrix for (state_A) -> (state_B):\n");
+	print_matrix_4D(M_AB);
 
-	return T_AB;
+	return M_AB;
 }
 
-void set_transformation_frames(gsl_matrix** transformation_frames, const gsl_matrix* T, const size_t num_of_frames) {
-	printf("\n==== Homotopy frames"); 
+void set_transformation_frames(
+	gsl_matrix** transformation_frames,
+	const NeedleCoordinates state_A,
+	const NeedleCoordinates state_B,
+	const size_t num_of_frames
+	) {
+	
+	const double delta_X = state_B.x - state_A.x;
+	const double delta_Y = state_B.y - state_A.y;
+	const double delta_Z = state_B.z - state_A.z;
+	const double delta_Phi = state_B.phi - state_A.phi;
+	const double delta_Theta = state_B.theta - state_A.theta;
+	const double delta_Psi = state_B.psi - state_A.psi;
 
+	assert(num_of_frames >= 2);
+	assert(delta_Phi < 2*M_PI);
+	assert(delta_Theta < 2*M_PI);
+	assert(delta_Psi < 2*M_PI);
+
+	printf("\n==== Intermediate transformation frames"); 
 	for (size_t j = 0; j < num_of_frames; j++) {
-		transformation_frames[j] = gsl_matrix_alloc(4, 4);
-		gsl_matrix_memcpy(transformation_frames[j], T);
+		const double progress_coefficient = (double) j / (double) (num_of_frames-1);
 
-		// Here we mutate affine transformation matrix T into
-		// (k)T + (1-k)Id, where k is the homotopy coefficient
-		double homotopy_coefficient = (double) j / (double) (num_of_frames-1);
-		gsl_matrix_scale(transformation_frames[j], homotopy_coefficient);
-		gsl_matrix* Id = gsl_matrix_alloc(4, 4);
-		gsl_matrix_set_identity(Id);
-		gsl_matrix_scale(Id, 1.0 - homotopy_coefficient);
-		gsl_matrix_add(transformation_frames[j], Id);
+		const double intermediate_delta_X = delta_X * progress_coefficient;
+		const double intermediate_delta_Y = delta_Y * progress_coefficient;
+		const double intermediate_delta_Z = delta_Z * progress_coefficient;
+		const double intermediate_delta_Phi = delta_Phi * progress_coefficient;
+		const double intermediate_delta_Theta = delta_Theta * progress_coefficient;
+		const double intermediate_delta_Psi = delta_Psi * progress_coefficient;
 
-		printf("\n==== Transformation matrix for frame %d: (%.3f)T + (%.3f)Id:\n", (int) j, (homotopy_coefficient), 1-homotopy_coefficient);
+		const NeedleCoordinates state_T = {
+			state_A.x + intermediate_delta_X,
+			state_A.y + intermediate_delta_Y,
+			state_A.z + intermediate_delta_Z,
+			state_A.phi + intermediate_delta_Phi,
+			state_A.theta + intermediate_delta_Theta,
+			state_A.psi + intermediate_delta_Psi
+		};
+		
+		transformation_frames[j] = get_transformation_matrix(state_A, state_T); // M_AT
+
+		printf("\n==== Intermediate state T for frame %d (progress = %f):\n", (int) j, progress_coefficient);
+		print_needle_coordinates(state_T);
+		printf("\n==== Transformation matrix M_AT for frame %d (progress = %f):\n", (int) j, progress_coefficient);
 		print_matrix_4D(transformation_frames[j]);
 	}
 }
 
 
-Table_Model* get_model_in_state_0 () {
-	Table_Model* model = (Table_Model*)malloc(sizeof(Table_Model));
+Table_Model* get_table_in_state_0 () {
+	Table_Model* table = (Table_Model*)malloc(sizeof(Table_Model));
 	for (int i = 0; i < NUM_OF_VECTORS; i++) {
-		model->coordinates[i] = gsl_vector_alloc(3);
+		table->coordinates[i] = gsl_vector_alloc(3);
 	}
 
 	double radius = TABLE_RADIUS;
 	double angle_in_radians = TABLE_ANGLE;
 	double distance_from_needle_end = NEEDLE_LENGTH;
 
-	gsl_vector_set(model->coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[0], 2, distance_from_needle_end);
-	gsl_vector_set(model->coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[1], 2, distance_from_needle_end);
-	gsl_vector_set(model->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[2], 2, distance_from_needle_end);
-	gsl_vector_set(model->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[3], 2, distance_from_needle_end);
-	gsl_vector_set(model->coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[4], 2, distance_from_needle_end);
-	gsl_vector_set(model->coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-	gsl_vector_set(model->coordinates[5], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[0], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[1], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[2], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[3], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[4], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[5], 2, distance_from_needle_end);
 
 	// Table centroid
-	gsl_vector_set(model->coordinates[6], 0, 0.0);
-	gsl_vector_set(model->coordinates[6], 1, 0.0);
-	gsl_vector_set(model->coordinates[6], 2, distance_from_needle_end);
+	gsl_vector_set(table->coordinates[6], 0, 0.0);
+	gsl_vector_set(table->coordinates[6], 1, 0.0);
+	gsl_vector_set(table->coordinates[6], 2, distance_from_needle_end);
 
 	// Needle end
-	gsl_vector_set(model->coordinates[7], 0, 0.0);
-	gsl_vector_set(model->coordinates[7], 1, 0.0);
-	gsl_vector_set(model->coordinates[7], 2, 0.0);
+	gsl_vector_set(table->coordinates[7], 0, 0.0);
+	gsl_vector_set(table->coordinates[7], 1, 0.0);
+	gsl_vector_set(table->coordinates[7], 2, 0.0);
 
 	printf("\n==== Table point coordinates (x, y, z) in cm for state_0:\n");
-	print_table(*model);
+	print_table(*table);
 
-	return model;
+	return table;
 }
 
 // Coordinates of sliders at their lowest possible position at rest.
@@ -343,10 +368,10 @@ double get_velocity(const double progress, const double velocity_max) {
 	// Logistic curve is used:
 	// https://www.desmos.com/calculator/j0sgzmoqbj
 	assert(velocity_max > 0.0);
-	assert(ACCURACY > 0.0 && ACCURACY < 1.0);
+	assert(DYNAMIC_ACCURACY > 0.0 && DYNAMIC_ACCURACY < 1.0);
 	assert(progress >= 0.0 && progress <= 1.0);
 
-	double k = log((1.0-ACCURACY)/(ACCURACY));
+	double k = log((1.0-DYNAMIC_ACCURACY)/(DYNAMIC_ACCURACY));
 	double velocity = velocity_max/(1.0 + exp(k*(2.0*progress - 1.0)));
 	return velocity;
 }
@@ -355,19 +380,19 @@ double get_acceleration(const double progress, const double velocity_max) {
 	// Logistic curve is used:
 	// https://www.desmos.com/calculator/j0sgzmoqbj
 	assert(velocity_max > 0.0);
-	assert(ACCURACY > 0.0 && ACCURACY < 1.0);
+	assert(DYNAMIC_ACCURACY > 0.0 && DYNAMIC_ACCURACY < 1.0);
 	assert(progress >= 0.0 && progress <= 1.0);
 
-	double k = log((1.0-ACCURACY)/(ACCURACY));
+	double k = log((1.0-DYNAMIC_ACCURACY)/(DYNAMIC_ACCURACY));
 	double acceleration = -2*k*velocity_max * exp(k*(2.0*progress - 1.0)) / pow(exp(k*(2.0*progress - 1.0))+1, 2);
 	return acceleration;
 }
 
-Table_Model* get_transformed_model(const gsl_matrix* T, const Table_Model initial_model){
-	Table_Model* transformed_model = (Table_Model*)malloc(sizeof(Table_Model));
+Table_Model* get_transformed_table(const gsl_matrix* T, const Table_Model initial_table){
+	Table_Model* transformed_table = (Table_Model*)malloc(sizeof(Table_Model));
 
 	for (int i = 0; i < NUM_OF_VECTORS; i++) {
-		const gsl_vector* initial_vec_in_3D = initial_model.coordinates[i];
+		const gsl_vector* initial_vec_in_3D = initial_table.coordinates[i];
 
 		// Uplifting to 4D
 		gsl_vector* initial_vec_in_4D = gsl_vector_alloc(4);
@@ -380,60 +405,59 @@ Table_Model* get_transformed_model(const gsl_matrix* T, const Table_Model initia
 		gsl_vector* transformed_vec_in_4D = gsl_vector_alloc(4);
 		gsl_blas_dgemv(CblasNoTrans, 1.0, T, initial_vec_in_4D, 0.0, transformed_vec_in_4D);
 
+		/*double point_z = gsl_vector_get(transformed_vec_in_4D, 2);*/
+		/*assert(point_z >= MIN_POSSIBLE_HEIGHT);*/
+
 		/*// Projection back to 3D*/
-		transformed_model->coordinates[i] = gsl_vector_alloc(3);
-		gsl_vector_set(transformed_model->coordinates[i], 0, gsl_vector_get(transformed_vec_in_4D, 0));
-		gsl_vector_set(transformed_model->coordinates[i], 1, gsl_vector_get(transformed_vec_in_4D, 1));
-		gsl_vector_set(transformed_model->coordinates[i], 2, gsl_vector_get(transformed_vec_in_4D, 2));
+		transformed_table->coordinates[i] = gsl_vector_alloc(3);
+		gsl_vector_set(transformed_table->coordinates[i], 0, gsl_vector_get(transformed_vec_in_4D, 0));
+		gsl_vector_set(transformed_table->coordinates[i], 1, gsl_vector_get(transformed_vec_in_4D, 1));
+		gsl_vector_set(transformed_table->coordinates[i], 2, gsl_vector_get(transformed_vec_in_4D, 2));
 
 		gsl_vector_free(initial_vec_in_4D);
 		gsl_vector_free(transformed_vec_in_4D);
 	}
-	return transformed_model;
+	return transformed_table;
 }
 
-void set_model_frames(Table_Model* model_frames, const size_t num_of_frames, const gsl_matrix** T_frames, const Table_Model initial_model) {
+void set_table_frames(Table_Model* table_frames, const size_t num_of_frames, const gsl_matrix** M_frames, const Table_Model initial_table) {
 	for (size_t j = 0; j < num_of_frames; j++) {
-		model_frames[j] = *get_transformed_model(T_frames[j], initial_model);
+		table_frames[j] = *get_transformed_table(M_frames[j], initial_table);
 		printf("\n==== Table point coordinates (x, y, z) in cm for frame %d:\n", (int) j);
-		print_table(model_frames[j]);
+		print_table(table_frames[j]);
 		// const gsl_matrix** prohibits this:
-		// gsl_matrix_set(T_frames[j], 1, 1, 0.0);
+		// gsl_matrix_set(M_frames[j], 1, 1, 0.0);
 	}
 }
-
-/// C-Python interface
-
 
 Frames* get_frames(NeedleCoordinates state_A, NeedleCoordinates state_B, const size_t num_of_frames) {
 	assert(num_of_frames >= 2);
 	const NeedleCoordinates state_0 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	const gsl_matrix* T_0A = get_transformation_matrix(state_0, state_A);
-	const gsl_matrix* T_AB = get_transformation_matrix(state_A, state_B);
+	const gsl_matrix* M_0A = get_transformation_matrix(state_0, state_A);
 	
 	// Struct with array of pointers to vectors that describe Table 3D model in state_0 ({0, 0, 0, 0, 0, 0} state)
-	Table_Model model_in_state_0 = *get_model_in_state_0();
+	Table_Model table_in_state_0 = *get_table_in_state_0();
 
 	// Struct with array of pointers to vectors that describe Table 3D model in state_A
-	Table_Model model_in_state_A = *get_transformed_model(T_0A, model_in_state_0);
+	Table_Model table_in_state_A = *get_transformed_table(M_0A, table_in_state_0);
 
 	// Struct with array of pointers to vectors that describe Sliders 3D model in zero state ({0, 0, 0, 0, 0, 0} state)
 	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE);
 
-	// Transformation frames are created using homotopy Id->T
 	// First frame is the the identity transformation (Id).
-	// Last frame is the full transformation (T_AB), which brings (state_A) to the (state_B).
-	// Other frames are created by mixing T_AB and Id, those frames describe transformation that is "in progress".
-	// Example for the case with 3 frames:
+	// Last frame is the full transformation (M_AB), which brings (state_A) to the (state_B).
+	// Other frames describe transformation that is "in progress", which bring (state_A) to some intermediate states (state_Tn)
+	// Example for the case with 4 frames:
 	// 	frame 0 is the Id;
-	//	frame 1 is 0.5 Id + 0.5 T_AB;
-	//	frame 2 is the T_AB;
-	gsl_matrix* T_frames[num_of_frames];
-	set_transformation_frames(T_frames, T_AB, num_of_frames);
+	//	frame 1 is the M_AT1
+	//	frame 2 is the M_AT2
+	//	frame 3 is the M_AB;
+	gsl_matrix* M_frames[num_of_frames];
+	set_transformation_frames(M_frames, state_A, state_B, num_of_frames);
 
 	// Each 3D model is produced by applying one of transformations "in progress" to the 3D model for initial state.
 	Table_Model table_frames[num_of_frames];
-	set_model_frames(table_frames, num_of_frames, (const gsl_matrix**) T_frames, model_in_state_A);
+	set_table_frames(table_frames, num_of_frames, (const gsl_matrix**) M_frames, table_in_state_A);
 
 	Sliders_Model_Nullable slider_frames[num_of_frames];
 	set_sliders_frames(slider_frames, num_of_frames, table_frames, sliders_in_state_0);
@@ -456,12 +480,12 @@ bool set_frames_py(
 		double* slider_x,
 		double* slider_y,
 		double* slider_z,
-		const double* state_1,
-		const double* state_2,
+		const double* ptr_state_A,
+		const double* ptr_state_B,
 		const size_t num_of_frames
 ){
-	const NeedleCoordinates state_A = {state_1[0], state_1[1], state_1[2], state_1[3], state_1[4], state_1[5]};
-	const NeedleCoordinates state_B = {state_2[0], state_2[1], state_2[2], state_2[3], state_2[4], state_2[5]};
+	const NeedleCoordinates state_A = {ptr_state_A[0], ptr_state_A[1], ptr_state_A[2], ptr_state_A[3], ptr_state_A[4], ptr_state_A[5]};
+	const NeedleCoordinates state_B = {ptr_state_B[0], ptr_state_B[1], ptr_state_B[2], ptr_state_B[3], ptr_state_B[4], ptr_state_B[5]};
 
 	const Frames* frames = get_frames(state_A, state_B, num_of_frames);
 	
@@ -488,11 +512,10 @@ bool set_frames_py(
 	return success;
 }
 
-
 int main(void) {
-	const NeedleCoordinates state_A = {-2.58, 1.77, 1.94, 0.71, 1.22, 0.47};
-	const NeedleCoordinates state_B = {0.0, -1.45, -2.58, 0.20, -0.61, -0.41};
-	const size_t num_of_frames = 10;
+	const NeedleCoordinates state_A = {-2.58, 1.77, 3.94, 0.71, 1.22, 0.47};
+	const NeedleCoordinates state_B = {0.0, -1.45, 1.0, 0.20, -0.61, -0.41};
+	const size_t num_of_frames = 3;
 
 	(void) get_frames(state_A, state_B, num_of_frames);
 

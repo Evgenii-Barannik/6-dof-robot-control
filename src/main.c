@@ -144,7 +144,7 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_set(M_0B, 3, 1, 0.0);
 	gsl_matrix_set(M_0B, 3, 2, 0.0);
 	gsl_matrix_set(M_0B, 3, 3, 1.0);
-	printf("\n==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):\n");
+	printf("\n==== M_0B, transformation matrix for (state_0) -> (state_B):\n");
 	print_matrix_4D(M_0B);
 
 	gsl_matrix* M_0A = gsl_matrix_alloc(4, 4);
@@ -165,7 +165,7 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_set(M_0A, 3, 1, 0.0);
 	gsl_matrix_set(M_0A, 3, 2, 0.0);
 	gsl_matrix_set(M_0A, 3, 3, 1.0);
-	printf("\n==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):\n");
+	printf("\n==== M_0A, transformation matrix for (state_0) -> (state_A):\n");
 	print_matrix_4D(M_0A);
 
 	int signum;
@@ -175,7 +175,7 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_memcpy(M_0A_temp, M_0A);
 	gsl_linalg_LU_decomp (M_0A_temp, p, &signum);
 	gsl_linalg_LU_invert (M_0A_temp, p, M_A0);
-	printf("\n==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:\n");
+	printf("\n==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:\n");
 	print_matrix_4D(M_A0);
 	gsl_permutation_free(p);
 
@@ -237,54 +237,8 @@ void set_transformation_frames(
 	}
 }
 
-
-Table_Model* get_table_in_state_0 () {
-	Table_Model* table = (Table_Model*)malloc(sizeof(Table_Model));
-	for (int i = 0; i < NUM_OF_VECTORS; i++) {
-		table->coordinates[i] = gsl_vector_alloc(3);
-	}
-
-	double radius = TABLE_RADIUS;
-	double angle_in_radians = TABLE_ANGLE;
-	double distance_from_needle_end = NEEDLE_LENGTH;
-
-	gsl_vector_set(table->coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[0], 2, distance_from_needle_end);
-	gsl_vector_set(table->coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[1], 2, distance_from_needle_end);
-	gsl_vector_set(table->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[2], 2, distance_from_needle_end);
-	gsl_vector_set(table->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[3], 2, distance_from_needle_end);
-	gsl_vector_set(table->coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[4], 2, distance_from_needle_end);
-	gsl_vector_set(table->coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-	gsl_vector_set(table->coordinates[5], 2, distance_from_needle_end);
-
-	// Table centroid
-	gsl_vector_set(table->coordinates[6], 0, 0.0);
-	gsl_vector_set(table->coordinates[6], 1, 0.0);
-	gsl_vector_set(table->coordinates[6], 2, distance_from_needle_end);
-
-	// Needle end
-	gsl_vector_set(table->coordinates[7], 0, 0.0);
-	gsl_vector_set(table->coordinates[7], 1, 0.0);
-	gsl_vector_set(table->coordinates[7], 2, 0.0);
-
-	printf("\n==== Table point coordinates (x, y, z) in cm for state_0:\n");
-	print_table(*table);
-
-	return table;
-}
-
-// Coordinates of sliders at their lowest possible position at rest.
-Sliders_Model_Nullable* get_sliders_in_state_0( const double radius, const double angle_in_radians) {
+// Coordinates of sliders at their highest possible position (at rest).
+Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double angle_in_radians) {
 	Sliders_Model_Nullable* sliders = (Sliders_Model_Nullable*) malloc(sizeof(Sliders_Model_Nullable));
 
 	for (int i = 0; i < NUM_OF_SLIDERS; i++) {
@@ -293,29 +247,86 @@ Sliders_Model_Nullable* get_sliders_in_state_0( const double radius, const doubl
 
 	gsl_vector_set(sliders->coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[0], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[0], 2, MAX_POSSIBLE_HEIGHT);
 	gsl_vector_set(sliders->coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[1], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[1], 2, MAX_POSSIBLE_HEIGHT);
 	gsl_vector_set(sliders->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[2], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[2], 2, MAX_POSSIBLE_HEIGHT);
 	gsl_vector_set(sliders->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[3], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[3], 2, MAX_POSSIBLE_HEIGHT);
 	gsl_vector_set(sliders->coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[4], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[4], 2, MAX_POSSIBLE_HEIGHT);
 	gsl_vector_set(sliders->coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[5], 2, 0.0);
+	gsl_vector_set(sliders->coordinates[5], 2, MAX_POSSIBLE_HEIGHT);
 
 	printf("\n==== Slider coordinates (x, y, z) in cm for state_0:\n");
-	
+
 	print_sliders(*sliders);
 	return sliders;
 }
 
+Table_Model* get_table_in_state_0() {
+	Table_Model* table = (Table_Model*)malloc(sizeof(Table_Model));
+	for (int i = 0; i < NUM_OF_VECTORS; i++) {
+		table->coordinates[i] = gsl_vector_alloc(3);
+	}
+
+	Sliders_Model_Nullable* sliders_in_state_0 = get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE);
+
+	double radius = TABLE_RADIUS;
+	double angle_in_radians = TABLE_ANGLE;
+	gsl_vector_set(table->coordinates[0], 0, radius * sin(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[0], 1, radius * cos(DEGREES_TO_RADIANS * 0 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[1], 0, radius * sin(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[1], 1, radius * cos(DEGREES_TO_RADIANS * 0 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[4], 0, radius * sin(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[4], 1, radius * cos(DEGREES_TO_RADIANS * 240 + (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[5], 0, radius * sin(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+	gsl_vector_set(table->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
+
+	// Now we calculate the z-coordinate for the first table vertex. It will be the same for all 6 hexagon vertices and centroid.
+	double slider_x = gsl_vector_get(sliders_in_state_0->coordinates[0], 0);
+	double slider_y = gsl_vector_get(sliders_in_state_0->coordinates[0], 1);
+	double slider_z = gsl_vector_get(sliders_in_state_0->coordinates[0], 2);
+	double table_x = gsl_vector_get(table->coordinates[0], 0);
+	double table_y = gsl_vector_get(table->coordinates[0], 1);
+	double deltaX = slider_x - table_x;
+	double deltaY = slider_y - table_y;
+	double deltaZ_squared = pow(ARM_LENGTH, 2) - pow(deltaX, 2) - pow(deltaY, 2);
+	assert(deltaZ_squared > 0);
+	double table_z = slider_z - sqrt(deltaZ_squared); 
+
+	for (int i = 0; i < NUM_OF_HEXAGON_VERTICES; i++) {
+		gsl_vector_set(table->coordinates[i], 2, table_z);
+	}
+
+	gsl_vector_set(table->coordinates[6], 0, 0.0); 
+	gsl_vector_set(table->coordinates[6], 1, 0.0);
+	gsl_vector_set(table->coordinates[6], 2, table_z); 
+
+	gsl_vector_set(table->coordinates[7], 0, 0.0);
+	gsl_vector_set(table->coordinates[7], 1, 0.0);
+	gsl_vector_set(table->coordinates[7], 2, table_z - NEEDLE_LENGTH);
+
+	for (int i = 0; i < NUM_OF_SLIDERS; ++i) {
+		gsl_vector_free(sliders_in_state_0->coordinates[i]);
+	}
+	free(sliders_in_state_0);
+
+	printf("\n==== Table point coordinates (x, y, z) in cm for state_0:\n");
+	print_table(*table);
+
+	return table;
+}
 
 Sliders_Model_Nullable* find_sliders(const Table_Model table_transformed_vecs, const Sliders_Model_Nullable sliders_in_state_0) {
 	Sliders_Model_Nullable* sliders = (Sliders_Model_Nullable*) malloc(sizeof(Sliders_Model_Nullable));
@@ -432,16 +443,18 @@ void set_table_frames(Table_Model* table_frames, const size_t num_of_frames, con
 
 Frames* get_frames(NeedleCoordinates state_A, NeedleCoordinates state_B, const size_t num_of_frames) {
 	assert(num_of_frames >= 2);
-	const NeedleCoordinates state_0 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	const gsl_matrix* M_0A = get_transformation_matrix(state_0, state_A);
 	
-	// Struct with array of pointers to vectors that describe Table 3D model in state_0 ({0, 0, 0, 0, 0, 0} state)
-	Table_Model table_in_state_0 = *get_table_in_state_0();
+	// Struct with array of pointers to vectors that describe Table 3D model in state_0.
+	const Table_Model table_in_state_0 = *get_table_in_state_0();
+	double needle_z_in_state_0 = gsl_vector_get(table_in_state_0.coordinates[7], 2);
+	const NeedleCoordinates state_0 = {0.0, 0.0, needle_z_in_state_0, 0.0, 0.0, 0.0};
+
+	const gsl_matrix* M_0A = get_transformation_matrix(state_0, state_A);
 
 	// Struct with array of pointers to vectors that describe Table 3D model in state_A
 	Table_Model table_in_state_A = *get_transformed_table(M_0A, table_in_state_0);
 
-	// Struct with array of pointers to vectors that describe Sliders 3D model in zero state ({0, 0, 0, 0, 0, 0} state)
+	// Struct with array of pointers to vectors that describe Sliders 3D model in zero state
 	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE);
 
 	// First frame is the the identity transformation (Id).

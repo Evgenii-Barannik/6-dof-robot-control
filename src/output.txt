@@ -1,54 +1,62 @@
 
+==== Slider coordinates (x, y, z) in cm for state_0:
+Slider 0: (0.913683, 6.940114, 20.000000)
+Slider 1: (-0.913683, 6.940114, 20.000000)
+Slider 2: (5.553473, -4.261330, 20.000000)
+Slider 3: (6.467157, -2.678784, 20.000000)
+Slider 4: (-6.467157, -2.678784, 20.000000)
+Slider 5: (-5.553473, -4.261330, 20.000000)
+
+==== Table point coordinates (x, y, z) in cm for state_0:
+0: (1.606969, 1.915111, 13.813830)
+1: (-1.606969, 1.915111, 13.813830)
+2: (0.855050, -2.349232, 13.813830)
+3: (2.462019, 0.434120, 13.813830)
+4: (-2.462019, 0.434120, 13.813830)
+5: (-0.855050, -2.349232, 13.813830)
+6: (0.000000, 0.000000, 13.813830) <-- table centroid
+7: (0.000000, 0.000000, 10.813830) <-- needle end
+
 ==== Transformation matrices for transition between state_A and state_B
 ==== state_A:
-Linear coordinates (x, y, z) in cm:        (0.000000, 0.000000, 0.000000)
+Linear coordinates (x, y, z) in cm:        (0.000000, 0.000000, 10.813830)
 Euler angles (phi, theta, psi) in radians: (0.000000, 0.000000, 0.000000)
 
 ==== state_B:
 Linear coordinates (x, y, z) in cm:        (-2.580000, 1.770000, 3.940000)
 Euler angles (phi, theta, psi) in radians: (0.710000, 1.220000, 0.470000)
 
-==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):
+==== M_0B, transformation matrix for (state_0) -> (state_B):
  0.306384  0.202310  0.930161 -2.580000
  0.155632  0.953360 -0.258619  1.770000
 -0.939099  0.224000  0.260608  3.940000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):
+==== M_0A, transformation matrix for (state_0) -> (state_A):
  1.000000  0.000000  0.000000  0.000000
  0.000000  1.000000  0.000000  0.000000
--0.000000  0.000000  1.000000  0.000000
+-0.000000  0.000000  1.000000 10.813830
  0.000000  0.000000  0.000000  1.000000
 
-==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:
+==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:
  1.000000  0.000000  0.000000 -0.000000
 -0.000000  1.000000  0.000000 -0.000000
--0.000000 -0.000000  1.000000 -0.000000
+ 0.000000  0.000000  1.000000 -10.813830
 -0.000000 -0.000000 -0.000000  1.000000
 
 ==== M_AB, transformation matrix for (state_A) -> (state_B):
- 0.306384  0.202310  0.930161 -2.580000
- 0.155632  0.953360 -0.258619  1.770000
--0.939099  0.224000  0.260608  3.940000
+ 0.306384  0.202310  0.930161 -12.638604
+ 0.155632  0.953360 -0.258619  4.566662
+-0.939099  0.224000  0.260608  1.121831
  0.000000  0.000000  0.000000  1.000000
 
-==== Table point coordinates (x, y, z) in cm for state_0:
-0: (1.606969, 1.915111, 3.000000)
-1: (-1.606969, 1.915111, 3.000000)
-2: (0.855050, -2.349232, 3.000000)
-3: (2.462019, 0.434120, 3.000000)
-4: (-2.462019, 0.434120, 3.000000)
-5: (-0.855050, -2.349232, 3.000000)
-6: (0.000000, 0.000000, 3.000000) <-- table centroid
-7: (0.000000, 0.000000, 0.000000) <-- needle end
-
 ==== Slider coordinates (x, y, z) in cm for state_0:
-Slider 0: (0.913683, 6.940114, 0.000000)
-Slider 1: (-0.913683, 6.940114, 0.000000)
-Slider 2: (5.553473, -4.261330, 0.000000)
-Slider 3: (6.467157, -2.678784, 0.000000)
-Slider 4: (-6.467157, -2.678784, 0.000000)
-Slider 5: (-5.553473, -4.261330, 0.000000)
+Slider 0: (0.913683, 6.940114, 20.000000)
+Slider 1: (-0.913683, 6.940114, 20.000000)
+Slider 2: (5.553473, -4.261330, 20.000000)
+Slider 3: (6.467157, -2.678784, 20.000000)
+Slider 4: (-6.467157, -2.678784, 20.000000)
+Slider 5: (-5.553473, -4.261330, 20.000000)
 
 ==== Intermediate transformation frames
 ==== Transformation matrices for transition between state_A and state_B
@@ -60,19 +68,19 @@ Euler angles (phi, theta, psi) in radians: (0.710000, 1.220000, 0.470000)
 Linear coordinates (x, y, z) in cm:        (-2.580000, 1.770000, 3.940000)
 Euler angles (phi, theta, psi) in radians: (0.710000, 1.220000, 0.470000)
 
-==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):
+==== M_0B, transformation matrix for (state_0) -> (state_B):
  0.306384  0.202310  0.930161 -2.580000
  0.155632  0.953360 -0.258619  1.770000
 -0.939099  0.224000  0.260608  3.940000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):
+==== M_0A, transformation matrix for (state_0) -> (state_A):
  0.306384  0.202310  0.930161 -2.580000
  0.155632  0.953360 -0.258619  1.770000
 -0.939099  0.224000  0.260608  3.940000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:
+==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:
  0.306384  0.155632 -0.939099  4.215052
  0.202310  0.953360  0.224000 -2.048047
  0.930161 -0.258619  0.260608  1.830777
@@ -103,19 +111,19 @@ Euler angles (phi, theta, psi) in radians: (0.710000, 1.220000, 0.470000)
 Linear coordinates (x, y, z) in cm:        (-1.290000, 0.160000, 2.470000)
 Euler angles (phi, theta, psi) in radians: (0.455000, 0.305000, 0.030000)
 
-==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):
+==== M_0B, transformation matrix for (state_0) -> (state_B):
  0.953418  0.104964  0.282802 -1.290000
  0.028611  0.901815 -0.431174  0.160000
 -0.300293  0.419180  0.856804  2.470000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):
+==== M_0A, transformation matrix for (state_0) -> (state_A):
  0.306384  0.202310  0.930161 -2.580000
  0.155632  0.953360 -0.258619  1.770000
 -0.939099  0.224000  0.260608  3.940000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:
+==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:
  0.306384  0.155632 -0.939099  4.215052
  0.202310  0.953360  0.224000 -2.048047
  0.930161 -0.258619  0.260608  1.830777
@@ -146,19 +154,19 @@ Euler angles (phi, theta, psi) in radians: (0.710000, 1.220000, 0.470000)
 Linear coordinates (x, y, z) in cm:        (0.000000, -1.450000, 1.000000)
 Euler angles (phi, theta, psi) in radians: (0.200000, -0.610000, -0.410000)
 
-==== M_0B, transformation matrix for (0,0,0,0,0,0) -> (state_B):
+==== M_0B, transformation matrix for (state_0) -> (state_B):
  0.751716  0.286285 -0.594107  0.000000
 -0.326719  0.944206  0.041595 -1.450000
  0.572867  0.162839  0.803310  1.000000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_0A, transformation matrix for (0,0,0,0,0,0) -> (state_A):
+==== M_0A, transformation matrix for (state_0) -> (state_A):
  0.306384  0.202310  0.930161 -2.580000
  0.155632  0.953360 -0.258619  1.770000
 -0.939099  0.224000  0.260608  3.940000
  0.000000  0.000000  0.000000  1.000000
 
-==== M_A0, transformation matrix for (state_A) -> (0,0,0,0,0,0), an inverse of M_0A:
+==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:
  0.306384  0.155632 -0.939099  4.215052
  0.202310  0.953360  0.224000 -2.048047
  0.930161 -0.258619  0.260608  1.830777
@@ -208,7 +216,7 @@ Euler angles (phi, theta, psi) in radians: (0.200000, -0.610000, -0.410000)
 4: (-3.508780, -0.110927, 2.070210)
 5: (-3.097627, -3.264012, 2.537552)
 6: (-1.782322, -1.325216, 3.409929) <-- table centroid
-7: (-0.000000, -1.450000, 1.000000) <-- needle end
+7: (0.000000, -1.450000, 1.000000) <-- needle end
 
 ==== Slider coordinates (x, y, z) in cm for frame 0:
 Slider 0: (0.913683, 6.940114, 10.641080)

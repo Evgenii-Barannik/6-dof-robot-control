@@ -241,3 +241,5 @@ Slider 2: (5.553473, -4.261330, 6.608446)
 Slider 3: (6.467157, -2.678784, 9.760463)
 Slider 4: (-6.467157, -2.678784, 9.045460)
 Slider 5: (-5.553473, -4.261330, 10.085676)
+Movement start time: 1725563293747288 microseconds
+Movement end time:   1725563296747288 microseconds

@@ -1,9 +1,12 @@
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
+#include <time.h>
+#include <inttypes.h>  
 #include <math.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
-#include <string.h>
 
 /// Ensures that assertions are not disabled
 #undef NDEBUG
@@ -29,7 +32,8 @@ const double ARM_LENGTH = 8.0; // Length of all robot arms in cm.
 const double DYNAMIC_ACCURACY = 0.99;  // should be between 0.0 and 1.0 
 ///
 
-typedef struct { // Full description of the needle position, and thus, whole system (ideally).
+// Full description of the needle position, and thus, whole system (ideally).
+typedef struct { 
 	double x, y, z; // Coordinates of the needle end in cm.
 	double phi, theta, psi; // Euler angles for the needle in radians.
 } NeedleCoordinates;
@@ -44,9 +48,11 @@ typedef struct {
     gsl_vector* coordinates[NUM_OF_SLIDERS];
 } Sliders_Model_Nullable;
 
+// Both pointers represent arrays with size equal to number of frames  
 typedef struct{
 	Table_Model* table; 
-	Sliders_Model_Nullable* sliders; 
+	Sliders_Model_Nullable* sliders;
+	uint64_t* timestamps;
 } Frames;
 
 bool all_not_NULL(const Sliders_Model_Nullable sliders) {
@@ -373,32 +379,6 @@ void set_sliders_frames(
 	}
 }
 
-
-
-double get_velocity(const double progress, const double velocity_max) {
-	// Logistic curve is used:
-	// https://www.desmos.com/calculator/j0sgzmoqbj
-	assert(velocity_max > 0.0);
-	assert(DYNAMIC_ACCURACY > 0.0 && DYNAMIC_ACCURACY < 1.0);
-	assert(progress >= 0.0 && progress <= 1.0);
-
-	double k = log((1.0-DYNAMIC_ACCURACY)/(DYNAMIC_ACCURACY));
-	double velocity = velocity_max/(1.0 + exp(k*(2.0*progress - 1.0)));
-	return velocity;
-}
-
-double get_acceleration(const double progress, const double velocity_max) {
-	// Logistic curve is used:
-	// https://www.desmos.com/calculator/j0sgzmoqbj
-	assert(velocity_max > 0.0);
-	assert(DYNAMIC_ACCURACY > 0.0 && DYNAMIC_ACCURACY < 1.0);
-	assert(progress >= 0.0 && progress <= 1.0);
-
-	double k = log((1.0-DYNAMIC_ACCURACY)/(DYNAMIC_ACCURACY));
-	double acceleration = -2*k*velocity_max * exp(k*(2.0*progress - 1.0)) / pow(exp(k*(2.0*progress - 1.0))+1, 2);
-	return acceleration;
-}
-
 Table_Model* get_transformed_table(const gsl_matrix* T, const Table_Model initial_table){
 	Table_Model* transformed_table = (Table_Model*)malloc(sizeof(Table_Model));
 
@@ -440,8 +420,12 @@ void set_table_frames(Table_Model* table_frames, const size_t num_of_frames, con
 		// gsl_matrix_set(M_frames[j], 1, 1, 0.0);
 	}
 }
-
-Frames* get_frames(NeedleCoordinates state_A, NeedleCoordinates state_B, const size_t num_of_frames) {
+//
+Frames* get_frames(const NeedleCoordinates state_B, uint64_t movement_start_mks) {
+	const NeedleCoordinates state_A = {-2.58, 1.77, 3.94, 0.71, 1.22, 0.47};
+	const uint64_t movement_duration_in_mks = 3 * 1000 * 1000; // TODO - calculate this
+	const size_t num_of_frames = 3; // TODO - calcualte this
+					  
 	assert(num_of_frames >= 2);
 	
 	// Struct with array of pointers to vectors that describe Table 3D model in state_0.
@@ -476,61 +460,78 @@ Frames* get_frames(NeedleCoordinates state_A, NeedleCoordinates state_B, const s
 	set_sliders_frames(slider_frames, num_of_frames, table_frames, sliders_in_state_0);
 	print_transformed_slider_coordinates(slider_frames, num_of_frames);
 
+	uint64_t timestamps[num_of_frames];
+	for (int i = 0; i < num_of_frames; i++) {
+    		const double progress = (double)i / (double)(num_of_frames - 1);
+	    	timestamps[i] = movement_start_mks + (uint64_t)(movement_duration_in_mks * progress);
+	}
+
 	Frames* f = (Frames*)malloc(sizeof(Frames));
 	f->table = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
 	f->sliders = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
+	f->timestamps = (uint64_t*)malloc(num_of_frames * sizeof(uint64_t));
+
 	memcpy(f->table, table_frames, num_of_frames * sizeof(Table_Model));
 	memcpy(f->sliders, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
+	memcpy(f->timestamps, timestamps, num_of_frames * sizeof(uint64_t));
+
+	printf("Movement start time: %" PRIu64 " microseconds\n", f->timestamps[0]);
+	printf("Movement end time:   %" PRIu64 " microseconds\n", f->timestamps[num_of_frames - 1]);
 
 	return f;
 }
 
 // Python - C interface
-bool set_frames_py(
-		double* table_x,
-		double* table_y,
-		double* table_z,
-		double* slider_x,
-		double* slider_y,
-		double* slider_z,
-		const double* ptr_state_A,
-		const double* ptr_state_B,
-		const size_t num_of_frames
-){
-	const NeedleCoordinates state_A = {ptr_state_A[0], ptr_state_A[1], ptr_state_A[2], ptr_state_A[3], ptr_state_A[4], ptr_state_A[5]};
-	const NeedleCoordinates state_B = {ptr_state_B[0], ptr_state_B[1], ptr_state_B[2], ptr_state_B[3], ptr_state_B[4], ptr_state_B[5]};
+// bool set_frames_py(
+// 		double* table_x,
+// 		double* table_y,
+// 		double* table_z,
+// 		double* slider_x,
+// 		double* slider_y,
+// 		double* slider_z,
+// 		const double* ptr_state_A,
+// 		const double* ptr_state_B,
+// 		const size_t num_of_frames
+// ){
+// 	const NeedleCoordinates state_A = {ptr_state_A[0], ptr_state_A[1], ptr_state_A[2], ptr_state_A[3], ptr_state_A[4], ptr_state_A[5]};
+// 	const NeedleCoordinates state_B = {ptr_state_B[0], ptr_state_B[1], ptr_state_B[2], ptr_state_B[3], ptr_state_B[4], ptr_state_B[5]};
+//
+// 	const Frames* frames = get_frames(state_A, state_B, num_of_frames);
+//
+// 	bool success = true;
+// 	for (size_t i = 0; i < num_of_frames; ++i) {
+// 		for (int j = 0; j < NUM_OF_VECTORS; ++j) {
+// 			table_x[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 0);
+// 			table_y[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 1);
+// 			table_z[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 2);
+// 		}
+// 		for (int k = 0; k < NUM_OF_SLIDERS; ++k) {
+// 			if (frames->sliders[i].coordinates[k] != NULL) {
+// 				slider_x[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 0);
+// 				slider_y[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 1);
+// 				slider_z[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 2);
+// 			} else {
+// 				slider_x[i * NUM_OF_SLIDERS + k] = NAN;
+// 				slider_y[i * NUM_OF_SLIDERS + k] = NAN;
+// 				slider_z[i * NUM_OF_SLIDERS + k] = NAN;
+// 				success = false;
+// 			}
+// 		}
+// 	}
+// 	return success;
+// }
 
-	const Frames* frames = get_frames(state_A, state_B, num_of_frames);
-	
-	bool success = true;
-	for (size_t i = 0; i < num_of_frames; ++i) {
-		for (int j = 0; j < NUM_OF_VECTORS; ++j) {
-			table_x[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 0);
-			table_y[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 1);
-			table_z[i * NUM_OF_VECTORS + j] = gsl_vector_get(frames->table[i].coordinates[j], 2);
-		}
-		for (int k = 0; k < NUM_OF_SLIDERS; ++k) {
-			if (frames->sliders[i].coordinates[k] != NULL) {
-				slider_x[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 0);
-				slider_y[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 1);
-				slider_z[i * NUM_OF_SLIDERS + k] = gsl_vector_get(frames->sliders[i].coordinates[k], 2);
-			} else {
-				slider_x[i * NUM_OF_SLIDERS + k] = NAN;
-				slider_y[i * NUM_OF_SLIDERS + k] = NAN;
-				slider_z[i * NUM_OF_SLIDERS + k] = NAN;
-				success = false;
-			}
-		}
-	}
-	return success;
+uint64_t get_current_time_in_mks() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (uint64_t)ts.tv_sec * 1000 * 1000 + (uint64_t)ts.tv_nsec / 1000;
 }
 
 int main(void) {
-	const NeedleCoordinates state_A = {-2.58, 1.77, 3.94, 0.71, 1.22, 0.47};
 	const NeedleCoordinates state_B = {0.0, -1.45, 1.0, 0.20, -0.61, -0.41};
-	const size_t num_of_frames = 3;
 
-	(void) get_frames(state_A, state_B, num_of_frames);
+	uint64_t current_time = get_current_time_in_mks();
+	(void) get_frames(state_B, current_time);
 
 	return 0;
 }

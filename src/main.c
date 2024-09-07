@@ -21,6 +21,7 @@ const int NUM_OF_SLIDERS = 6;
 ///
 
 /// CONSTANTS THAT CAN BE CHANGED
+const bool PRINT_DEBUG_INFO = true;
 const double NEEDLE_LENGTH = 3.0;
 const double TABLE_RADIUS = 2.5; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
@@ -48,12 +49,16 @@ typedef struct {
     gsl_vector* coordinates[NUM_OF_SLIDERS];
 } Sliders_Model_Nullable;
 
-// Both pointers represent arrays with size equal to number of frames  
 typedef struct{
-	Table_Model* table; 
-	Sliders_Model_Nullable* sliders;
+	// Pointers to arrays with size equal to the number of frames  
+	Table_Model* table_positions; 
+	Sliders_Model_Nullable* slider_positions;
 	uint64_t* timestamps;
-} Frames;
+
+	// Pointers to single structs
+	NeedleCoordinates* initial_state;
+	NeedleCoordinates* final_state;
+} Trajectory;
 
 bool all_not_NULL(const Sliders_Model_Nullable sliders) {
     for (int i = 0; i < NUM_OF_SLIDERS; ++i) {
@@ -64,34 +69,27 @@ bool all_not_NULL(const Sliders_Model_Nullable sliders) {
     }
     return true;
 }
-
-void print_needle_coordinates(NeedleCoordinates table) {
-    printf("Linear coordinates (x, y, z) in cm:        (%f, %f, %f)\n", table.x, table.y, table.z);
-    printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table.phi, table.theta, table.psi);
-}
-
-void print_matrix_4D(const gsl_matrix* m) {
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            printf(j==3?"%9.6f\n":"%9.6f ", gsl_matrix_get(m,i,j));
+void print_needle_coordinates(NeedleCoordinates* table) {
+	printf("Linear coordinates (x, y, z) in cm:        (%f, %f, %f)\n", table->x, table->y, table->z);
+	printf("Euler angles (phi, theta, psi) in radians: (%f, %f, %f)\n", table->phi, table->theta, table->psi);
 }
 
 void print_table(const Table_Model table) {
-    for(int i = 0; i < NUM_OF_VECTORS; i++) {
+	for(int i = 0; i < NUM_OF_VECTORS; i++) {
 
-         printf("%d: (%f, %f, %f)", i,
-             gsl_vector_get(table.coordinates[i], 0),
-             gsl_vector_get(table.coordinates[i], 1),
-             gsl_vector_get(table.coordinates[i], 2));
+		printf("%d: (%f, %f, %f)", i,
+				gsl_vector_get(table.coordinates[i], 0),
+				gsl_vector_get(table.coordinates[i], 1),
+				gsl_vector_get(table.coordinates[i], 2));
 
-        if (i == NUM_OF_VECTORS - 2) {
-            printf(" <-- table centroid");
-        }
-        if (i == NUM_OF_VECTORS - 1){
-            printf(" <-- needle end");
-        }
-        printf("\n");
-    }
+		if (i == NUM_OF_VECTORS - 2) {
+			printf(" <-- table centroid");
+		}
+		if (i == NUM_OF_VECTORS - 1){
+			printf(" <-- needle end");
+		}
+		printf("\n");
+	}
 }
 
 void print_sliders(const Sliders_Model_Nullable sliders) {
@@ -107,32 +105,40 @@ void print_sliders(const Sliders_Model_Nullable sliders) {
 	}
 }
 
-void print_transformed_slider_coordinates(const Sliders_Model_Nullable* slider_frames, const size_t num_of_frames) {
-	for (size_t j = 0; j < num_of_frames; j++)  {
-		bool slider_coordinates_found = all_not_NULL(slider_frames[j]);
-		if (slider_coordinates_found) {
-			printf("\n==== Slider coordinates (x, y, z) in cm for frame %d:\n", (int) j );
-			print_sliders(slider_frames[j]);
+void print_matrix_4D(const gsl_matrix* m) {
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < 4; ++j)
+			printf(j==3?"%9.6f\n":"%9.6f ", gsl_matrix_get(m,i,j));
+}
 
-		} else {
-			printf("\n==== Sliders coordinates for frame %d NOT found!\n", (int) j);
-			printf("Failed to find slider coordinates that can realize targeted table coordinates.\n");
-			printf("Targeted table coordinates deemed infeasible. Slider diagnostics:\n");
-			print_sliders(slider_frames[j]);
-		}
+void print_trajectory(const Trajectory* trajectory, const size_t num_of_frames, const gsl_matrix* transformation_matrix) {
+	printf("\n==== Trajectory ====");
+	printf("\nNumber of frames: %d", (int) num_of_frames);
+	printf("\nTrajectory start time: %" PRIu64 " microseconds\n", trajectory->timestamps[0]);
+	printf("Trajectory end time:   %" PRIu64 " microseconds\n", trajectory->timestamps[num_of_frames - 1]);
+
+
+	printf("\n==== Needle coordinates for initial state:\n");
+	print_needle_coordinates(trajectory->initial_state);
+	printf("\n==== Needle coordinates for final state:\n");
+	print_needle_coordinates(trajectory->final_state);
+	printf("\n==== Affine transformation matrix:\n");
+	print_matrix_4D(transformation_matrix);
+
+	for (int i = 0; i < num_of_frames; i++) {
+		double progress = (double) i / (double) (num_of_frames - 1);
+		printf("\n==== Frame %d / %d\nProgress: %f\nTimestamp: %" PRIu64 "\n", i, (int) num_of_frames - 1, progress, trajectory->timestamps[i]);
+		printf("\nTable coordinates (x, y, z):\n");
+		print_table(trajectory->table_positions[i]);
+		printf("\nSlider coordinates (x, y, z):\n");
+		print_sliders(trajectory->slider_positions[i]);
 	}
 }
 
-gsl_matrix* get_transformation_matrix(
-    const NeedleCoordinates state_A,
-    const NeedleCoordinates state_B
-    ) {
-	printf("\n==== Transformation matrices for transition between state_A and state_B");
-	printf("\n==== state_A:\n");
-	print_needle_coordinates(state_A);
-	printf("\n==== state_B:\n");
-	print_needle_coordinates(state_B);
 
+
+gsl_matrix* get_transformation_matrix(const NeedleCoordinates state_A, const NeedleCoordinates state_B) {
+	// M_0B, transformation matrix for (state_0) -> (state_B)
 	gsl_matrix* M_0B = gsl_matrix_alloc(4, 4);
 	gsl_matrix_set(M_0B, 0, 0, cos(state_B.psi) * cos(state_B.theta));
 	gsl_matrix_set(M_0B, 0, 1, cos(state_B.psi) * sin(state_B.theta) * sin(state_B.phi) - sin(state_B.psi) * cos(state_B.phi));
@@ -150,9 +156,8 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_set(M_0B, 3, 1, 0.0);
 	gsl_matrix_set(M_0B, 3, 2, 0.0);
 	gsl_matrix_set(M_0B, 3, 3, 1.0);
-	printf("\n==== M_0B, transformation matrix for (state_0) -> (state_B):\n");
-	print_matrix_4D(M_0B);
 
+	// M_0A, transformation matrix for (state_0) -> (state_A)
 	gsl_matrix* M_0A = gsl_matrix_alloc(4, 4);
 	gsl_matrix_set(M_0A, 0, 0, cos(state_A.psi) * cos(state_A.theta));
 	gsl_matrix_set(M_0A, 0, 1, cos(state_A.psi) * sin(state_A.theta) * sin(state_A.phi) - sin(state_A.psi) * cos(state_A.phi));
@@ -171,8 +176,6 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_set(M_0A, 3, 1, 0.0);
 	gsl_matrix_set(M_0A, 3, 2, 0.0);
 	gsl_matrix_set(M_0A, 3, 3, 1.0);
-	printf("\n==== M_0A, transformation matrix for (state_0) -> (state_A):\n");
-	print_matrix_4D(M_0A);
 
 	int signum;
 	gsl_permutation * p = gsl_permutation_alloc(4);
@@ -181,17 +184,13 @@ gsl_matrix* get_transformation_matrix(
 	gsl_matrix_memcpy(M_0A_temp, M_0A);
 	gsl_linalg_LU_decomp (M_0A_temp, p, &signum);
 	gsl_linalg_LU_invert (M_0A_temp, p, M_A0);
-	printf("\n==== M_A0, transformation matrix for (state_A) -> (state_0), an inverse of M_0A:\n");
-	print_matrix_4D(M_A0);
 	gsl_permutation_free(p);
 
+	// M_AB, transformation matrix for (state_A) -> (state_B)
 	// M_AB = M_0B * (M_0A)^(-1)
 	// M_AB = M_0B * M_A0
 	gsl_matrix* M_AB = gsl_matrix_alloc(4, 4);
 	gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, M_0B, M_A0,  0.0, M_AB);
-	printf("\n==== M_AB, transformation matrix for (state_A) -> (state_B):\n");
-	print_matrix_4D(M_AB);
-
 	return M_AB;
 }
 
@@ -214,7 +213,6 @@ void set_transformation_frames(
 	assert(delta_Theta < 2*M_PI);
 	assert(delta_Psi < 2*M_PI);
 
-	printf("\n==== Intermediate transformation frames"); 
 	for (size_t j = 0; j < num_of_frames; j++) {
 		const double progress_coefficient = (double) j / (double) (num_of_frames-1);
 
@@ -235,16 +233,11 @@ void set_transformation_frames(
 		};
 		
 		transformation_frames[j] = get_transformation_matrix(state_A, state_T); // M_AT
-
-		printf("\n==== Intermediate state T for frame %d (progress = %f):\n", (int) j, progress_coefficient);
-		print_needle_coordinates(state_T);
-		printf("\n==== Transformation matrix M_AT for frame %d (progress = %f):\n", (int) j, progress_coefficient);
-		print_matrix_4D(transformation_frames[j]);
 	}
 }
 
 // Coordinates of sliders at their highest possible position (at rest).
-Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double angle_in_radians) {
+Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double angle_in_radians, bool print_debug_info) {
 	Sliders_Model_Nullable* sliders = (Sliders_Model_Nullable*) malloc(sizeof(Sliders_Model_Nullable));
 
 	for (int i = 0; i < NUM_OF_SLIDERS; i++) {
@@ -270,19 +263,22 @@ Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double
 	gsl_vector_set(sliders->coordinates[5], 1, radius * cos(DEGREES_TO_RADIANS * 240 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[5], 2, MAX_POSSIBLE_HEIGHT);
 
-	printf("\n==== Slider coordinates (x, y, z) in cm for state_0:\n");
 
-	print_sliders(*sliders);
+	if (print_debug_info) {
+		printf("\n==== Slider coordinates (x, y, z) in cm for state_0:\n");
+		print_sliders(*sliders);
+	}
+
 	return sliders;
 }
 
-Table_Model* get_table_in_state_0() {
+Table_Model* get_table_in_state_0(bool print_debug_info) {
 	Table_Model* table = (Table_Model*)malloc(sizeof(Table_Model));
 	for (int i = 0; i < NUM_OF_VECTORS; i++) {
 		table->coordinates[i] = gsl_vector_alloc(3);
 	}
 
-	Sliders_Model_Nullable* sliders_in_state_0 = get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE);
+	Sliders_Model_Nullable* sliders_in_state_0 = get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE, false);
 
 	double radius = TABLE_RADIUS;
 	double angle_in_radians = TABLE_ANGLE;
@@ -328,8 +324,10 @@ Table_Model* get_table_in_state_0() {
 	}
 	free(sliders_in_state_0);
 
-	printf("\n==== Table point coordinates (x, y, z) in cm for state_0:\n");
-	print_table(*table);
+	if (print_debug_info) {
+		printf("==== Table coordinates (x, y, z) in cm for state_0:\n");
+		print_table(*table);
+	}
 
 	return table;
 }
@@ -414,32 +412,28 @@ Table_Model* get_transformed_table(const gsl_matrix* T, const Table_Model initia
 void set_table_frames(Table_Model* table_frames, const size_t num_of_frames, const gsl_matrix** M_frames, const Table_Model initial_table) {
 	for (size_t j = 0; j < num_of_frames; j++) {
 		table_frames[j] = *get_transformed_table(M_frames[j], initial_table);
-		printf("\n==== Table point coordinates (x, y, z) in cm for frame %d:\n", (int) j);
-		print_table(table_frames[j]);
 		// const gsl_matrix** prohibits this:
 		// gsl_matrix_set(M_frames[j], 1, 1, 0.0);
 	}
 }
-//
-Frames* get_frames(const NeedleCoordinates state_B, uint64_t movement_start_mks) {
-	const NeedleCoordinates state_A = {-2.58, 1.77, 3.94, 0.71, 1.22, 0.47};
+
+Trajectory* get_trajectory(const NeedleCoordinates initial_state, const NeedleCoordinates final_state, uint64_t movement_start_mks) {
 	const uint64_t movement_duration_in_mks = 3 * 1000 * 1000; // TODO - calculate this
-	const size_t num_of_frames = 3; // TODO - calcualte this
-					  
+	const size_t num_of_frames = 10; // TODO - calculate this
 	assert(num_of_frames >= 2);
-	
+
 	// Struct with array of pointers to vectors that describe Table 3D model in state_0.
-	const Table_Model table_in_state_0 = *get_table_in_state_0();
+	const Table_Model table_in_state_0 = *get_table_in_state_0(PRINT_DEBUG_INFO);
 	double needle_z_in_state_0 = gsl_vector_get(table_in_state_0.coordinates[7], 2);
 	const NeedleCoordinates state_0 = {0.0, 0.0, needle_z_in_state_0, 0.0, 0.0, 0.0};
 
-	const gsl_matrix* M_0A = get_transformation_matrix(state_0, state_A);
+	const gsl_matrix* M_0A = get_transformation_matrix(state_0, initial_state);
 
 	// Struct with array of pointers to vectors that describe Table 3D model in state_A
 	Table_Model table_in_state_A = *get_transformed_table(M_0A, table_in_state_0);
 
 	// Struct with array of pointers to vectors that describe Sliders 3D model in zero state
-	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE);
+	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS, BASE_ANGLE, PRINT_DEBUG_INFO);
 
 	// First frame is the the identity transformation (Id).
 	// Last frame is the full transformation (M_AB), which brings (state_A) to the (state_B).
@@ -450,7 +444,7 @@ Frames* get_frames(const NeedleCoordinates state_B, uint64_t movement_start_mks)
 	//	frame 2 is the M_AT2
 	//	frame 3 is the M_AB;
 	gsl_matrix* M_frames[num_of_frames];
-	set_transformation_frames(M_frames, state_A, state_B, num_of_frames);
+	set_transformation_frames(M_frames, initial_state, final_state, num_of_frames);
 
 	// Each 3D model is produced by applying one of transformations "in progress" to the 3D model for initial state.
 	Table_Model table_frames[num_of_frames];
@@ -458,27 +452,32 @@ Frames* get_frames(const NeedleCoordinates state_B, uint64_t movement_start_mks)
 
 	Sliders_Model_Nullable slider_frames[num_of_frames];
 	set_sliders_frames(slider_frames, num_of_frames, table_frames, sliders_in_state_0);
-	print_transformed_slider_coordinates(slider_frames, num_of_frames);
-
+	// print_transformed_slider_coordinates(slider_frames, num_of_frames);
+	//
 	uint64_t timestamps[num_of_frames];
 	for (int i = 0; i < num_of_frames; i++) {
     		const double progress = (double)i / (double)(num_of_frames - 1);
 	    	timestamps[i] = movement_start_mks + (uint64_t)(movement_duration_in_mks * progress);
 	}
 
-	Frames* f = (Frames*)malloc(sizeof(Frames));
-	f->table = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
-	f->sliders = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
-	f->timestamps = (uint64_t*)malloc(num_of_frames * sizeof(uint64_t));
+	Trajectory* trajectory = (Trajectory*)malloc(sizeof(Trajectory));
+	trajectory->table_positions = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
+	trajectory->slider_positions = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
+	trajectory->timestamps = (uint64_t*)malloc(num_of_frames * sizeof(uint64_t));
+	trajectory->initial_state = malloc(sizeof(NeedleCoordinates));
+	trajectory->final_state = malloc(sizeof(NeedleCoordinates));
 
-	memcpy(f->table, table_frames, num_of_frames * sizeof(Table_Model));
-	memcpy(f->sliders, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
-	memcpy(f->timestamps, timestamps, num_of_frames * sizeof(uint64_t));
+	memcpy(trajectory->table_positions, table_frames, num_of_frames * sizeof(Table_Model));
+	memcpy(trajectory->slider_positions, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
+	memcpy(trajectory->timestamps, timestamps, num_of_frames * sizeof(uint64_t));
+	memcpy(trajectory->initial_state, &initial_state, sizeof(NeedleCoordinates));
+	memcpy(trajectory->final_state, &final_state, sizeof(NeedleCoordinates));
 
-	printf("Movement start time: %" PRIu64 " microseconds\n", f->timestamps[0]);
-	printf("Movement end time:   %" PRIu64 " microseconds\n", f->timestamps[num_of_frames - 1]);
+	if (PRINT_DEBUG_INFO) {
+		print_trajectory(trajectory, num_of_frames, M_frames[num_of_frames-1]);
+	}
 
-	return f;
+	return trajectory;
 }
 
 // Python - C interface
@@ -527,11 +526,43 @@ uint64_t get_current_time_in_mks() {
     return (uint64_t)ts.tv_sec * 1000 * 1000 + (uint64_t)ts.tv_nsec / 1000;
 }
 
+int compare_uint64_t(const void *a, const void *b) {
+    uint64_t num1 = *(const uint64_t *)a;
+    uint64_t num2 = *(const uint64_t *)b;
+
+    if (num1 < num2) return -1;
+    if (num1 > num2) return 1;
+    return 0;
+}
+
+
 int main(void) {
+	const NeedleCoordinates state_A = {-2.58, 1.77, 3.94, 0.71, 1.22, 0.47};
 	const NeedleCoordinates state_B = {0.0, -1.45, 1.0, 0.20, -0.61, -0.41};
+	const size_t num_of_frames = 10;
 
 	uint64_t current_time = get_current_time_in_mks();
-	(void) get_frames(state_B, current_time);
+	Trajectory* trajectory = get_trajectory(state_A, state_B, current_time);
+	
+	uint64_t arbitrary_timestamp = current_time + (uint64_t)(1.2 * 1000 * 1000);
+	printf("\nArbitrary timestamp:  %" PRIu64 "\n", arbitrary_timestamp);
+	uint64_t *result = (uint64_t *)bsearch(&arbitrary_timestamp, trajectory->timestamps, num_of_frames, sizeof(uint64_t), compare_uint64_t);
+	if (result != NULL) {
+		printf("Exact timestamp found: %llu\n", *result);
+	} else {
+		int low = 0, high = num_of_frames - 1;
 
+		while (low <= high) {
+			int mid = (low + high) / 2;
+			if (trajectory->timestamps[mid] < arbitrary_timestamp) {
+				low = mid + 1;
+			} else {
+				high = mid - 1;
+			}
+		}
+
+		uint64_t next_higher = (low < num_of_frames) ? trajectory->timestamps[low] : 0;  
+		printf("Next timestamp found: %llu\n", next_higher);
+	}
 	return 0;
 }

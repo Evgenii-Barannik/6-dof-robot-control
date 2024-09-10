@@ -2,10 +2,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <time.h>
-#include <inttypes.h>  
+#include <string.h> // for memcpy()
+#include <stdbool.h> // for bool
+#include <time.h>   // for clock_gettime()
 #include <unistd.h> // for usleep()
 #include <math.h>
 #include <gsl/gsl_blas.h>
@@ -14,19 +13,23 @@
 #undef NDEBUG // Ensures that assertions are not disabled
 #include <assert.h>
 
+
 /// CONSTANTS THAT SHOULD NOT BE CHANGED
 const double DEGREES_TO_RADIANS = (2 * M_PI / 360);
-const int NUM_OF_HEXAGON_VERTICES = 6;
-const int NUM_OF_VECTORS = NUM_OF_HEXAGON_VERTICES + 2;
-const int NUM_OF_SLIDERS = 6;
+const size_t NUM_OF_HEXAGON_VERTICES = 6;
+const size_t NUM_OF_VECTORS = NUM_OF_HEXAGON_VERTICES + 2;
+const size_t NUM_OF_SLIDERS = 6;
 ///
 
+
 /// CONSTANTS THAT CAN BE CHANGED
-const bool PRINT_DEBUG_INFO = true;
+const bool PRINT_DEBUG_INFO_GLOBAL = true;
+const size_t PRINT_DEBUG_SUBSELETION_FACTOR = 10 * 1000; // Prints info every nth iteration for some large logs;
+		
+const size_t NUM_OF_FRAMES = 10 * 1000;
+const size_t MOVEMENT_DURATION_MKS = 5 * 1000 * 1000;
 const uint64_t TRAJECTORY_WAIT_TIME_MKS = 500;
 const double MIN_SLIDER_STEP_CM = 0.001;
-const double MAX_SLIDER_SPEED_CM_PER_SEC = 2;
-
 const double NEEDLE_LENGTH_CM = 3.0;
 const double TABLE_RADIUS_CM = 2.5; // Radius of the hexagonal table in cm.
 const double TABLE_ANGLE = DEGREES_TO_RADIANS * 80; // Angle between vertices of the hexagonal table in radians. A regular hexagon will have 60 deg.
@@ -53,22 +56,27 @@ typedef struct {
     gsl_vector* coordinates[NUM_OF_SLIDERS];
 } Sliders_Model_Nullable;
 
+typedef struct {
+	bool slider_movement_needed [NUM_OF_SLIDERS];
+	bool slider_movement_direction_is_up [NUM_OF_SLIDERS];
+} Sliders_Movement_Recipe;
+
 typedef struct{
 	// Pointers to arrays with size equal to the number of frames  
-	Table_Model* table_positions; 
-	Sliders_Model_Nullable* slider_positions;
+	Table_Model* table_frames; 
+	Sliders_Model_Nullable* slider_frames;
 	uint64_t* timestamps;
 
 	// Pointers to single structs
-	NeedleCoordinates* state_initial;
-	NeedleCoordinates* state_final;
+	NeedleCoordinates* initial_state;
+	NeedleCoordinates* final_state;
 
 	// Number of frames
 	size_t num_of_frames;
 } Trajectory;
 
 bool all_not_NULL(const Sliders_Model_Nullable sliders) {
-    for (size_t i = 0; i < NUM_OF_SLIDERS; ++i) {
+    for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
         gsl_vector* vec_p = sliders.coordinates[i];
         if (vec_p == NULL) {
             return false;
@@ -141,26 +149,39 @@ void print_trajectory(const Trajectory* trajectory) {
 	const size_t num_of_frames = trajectory->num_of_frames;
 	printf("\n==== Trajectory ====");
 	printf("\nNumber of frames: %lu", num_of_frames);
-	printf("\nTrajectory start time: %" PRIu64 " microseconds\n", trajectory->timestamps[0]);
-	printf("Trajectory end time:   %" PRIu64 " microseconds\n", trajectory->timestamps[num_of_frames - 1]);
+	printf("\nTrajectory start time: %llu microseconds\n", trajectory->timestamps[0]);
+	printf("Trajectory end time: %llu microseconds\n", trajectory->timestamps[num_of_frames - 1]);
 
 
 	printf("\n==== Needle coordinates for state_initial:\n");
-	print_needle_coordinates(trajectory->state_initial);
+	print_needle_coordinates(trajectory->initial_state);
 	printf("\n==== Needle coordinates for state_final:\n");
-	print_needle_coordinates(trajectory->state_final);
+	print_needle_coordinates(trajectory->final_state);
 
 	for (size_t i = 0; i < num_of_frames; i++) {
-		double progress = (double) i / (double) (num_of_frames - 1);
-		printf("\n==== Frame %lu / %lu\nProgress: %f\nTimestamp: %" PRIu64 "\n", i, num_of_frames - 1, progress, trajectory->timestamps[i]);
-		printf("\nTable coordinates (x, y, z):\n");
-		print_table(trajectory->table_positions[i]);
-		printf("\nSlider coordinates (x, y, z):\n");
-		print_sliders(trajectory->slider_positions[i]);
+		bool print_debug_info_local = (i % PRINT_DEBUG_SUBSELETION_FACTOR) == 0;
+		if (print_debug_info_local) {
+			double progress = (double) i / (double) (num_of_frames - 1);
+			printf("\n==== Frame %lu / %lu\nProgress: %f\nTimestamp: %llu \n", i, num_of_frames - 1, progress, trajectory->timestamps[i]);
+			printf("\nTable coordinates (x, y, z):\n");
+			print_table(trajectory->table_frames[i]);
+			printf("\nSlider coordinates (x, y, z):\n");
+			print_sliders(trajectory->slider_frames[i]);
+		}
 	}
 }
 
 
+void print_sliders_movement_recipe(const Sliders_Movement_Recipe* recipe) {
+    printf("\nSliders Movement Recipe:\n");
+	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
+		printf("Slider %lu movement needed: %s\n", i, recipe->slider_movement_needed[i] ? "true" : "false");
+
+	}
+	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
+		printf("Slider %lu movement direction is upwards: %s\n", i, recipe->slider_movement_direction_is_up[i] ? "true" : "false");
+	}
+}
 
 gsl_matrix* get_transformation_matrix(const NeedleCoordinates state_A, const NeedleCoordinates state_B) {
 	// M_0B, transformation matrix for (state_0) -> (state_B)
@@ -262,7 +283,7 @@ void set_transformation_frames(
 }
 
 // Coordinates of sliders at their highest possible position (at rest).
-Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double angle_in_radians, bool print_debug_info) {
+Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double angle_in_radians, bool print_debug_info_local) {
 	Sliders_Model_Nullable* sliders = (Sliders_Model_Nullable*) malloc(sizeof(Sliders_Model_Nullable));
 
 	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
@@ -277,7 +298,7 @@ Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double
 	gsl_vector_set(sliders->coordinates[1], 2, MAX_POSSIBLE_HEIGHT_CM);
 	gsl_vector_set(sliders->coordinates[2], 0, radius * sin(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[2], 1, radius * cos(DEGREES_TO_RADIANS * 120 + (angle_in_radians / 2.0)));
-	gsl_vector_set(sliders->coordinates[2], 2, MAX_POSSIBLE_HEIGHT_CM);
+gsl_vector_set(sliders->coordinates[2], 2, MAX_POSSIBLE_HEIGHT_CM);
 	gsl_vector_set(sliders->coordinates[3], 0, radius * sin(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[3], 1, radius * cos(DEGREES_TO_RADIANS * 120 - (angle_in_radians / 2.0)));
 	gsl_vector_set(sliders->coordinates[3], 2, MAX_POSSIBLE_HEIGHT_CM);
@@ -289,7 +310,7 @@ Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double
 	gsl_vector_set(sliders->coordinates[5], 2, MAX_POSSIBLE_HEIGHT_CM);
 
 
-	if (print_debug_info) {
+	if (print_debug_info_local) {
 		printf("\n==== Slider coordinates (x, y, z) in cm for state_0:\n");
 		print_sliders(*sliders);
 	}
@@ -297,7 +318,7 @@ Sliders_Model_Nullable* get_sliders_in_state_0(const double radius, const double
 	return sliders;
 }
 
-Table_Model* get_table_in_state_0(bool print_debug_info) {
+Table_Model* get_table_in_state_0(bool print_debug_info_local) {
 	Table_Model* table = (Table_Model*)malloc(sizeof(Table_Model));
 	for (size_t i = 0; i < NUM_OF_VECTORS; i++) {
 		table->coordinates[i] = gsl_vector_alloc(3);
@@ -344,12 +365,12 @@ Table_Model* get_table_in_state_0(bool print_debug_info) {
 	gsl_vector_set(table->coordinates[7], 1, 0.0);
 	gsl_vector_set(table->coordinates[7], 2, table_z - NEEDLE_LENGTH_CM);
 
-	for (size_t i = 0; i < NUM_OF_SLIDERS; ++i) {
+	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
 		gsl_vector_free(sliders_in_state_0->coordinates[i]);
 	}
 	free(sliders_in_state_0);
 
-	if (print_debug_info) {
+	if (print_debug_info_local) {
 		printf("\n==== Table coordinates (x, y, z) in cm for state_0:\n");
 		print_table(*table);
 	}
@@ -442,14 +463,14 @@ void set_table_frames(Table_Model* table_frames, const size_t num_of_frames, con
 	}
 }
 
-NeedleCoordinates* get_state_0(bool print_debug_info) {
+NeedleCoordinates* get_state_0(bool print_debug_info_local) {
 	const Table_Model table_in_state_0 = *get_table_in_state_0(false);
 	double needle_z_in_state_0 = gsl_vector_get(table_in_state_0.coordinates[7], 2);
 
 	NeedleCoordinates* state_0 = (NeedleCoordinates*) malloc(sizeof(NeedleCoordinates));
 	*state_0 = (NeedleCoordinates) {0.0, 0.0, needle_z_in_state_0, 0.0, 0.0, 0.0};
 
-	if (print_debug_info) {
+	if (print_debug_info_local) {
 		printf("==== Needle coordinates for state_0:\n");
 		print_needle_coordinates(state_0);
 	}
@@ -457,13 +478,13 @@ NeedleCoordinates* get_state_0(bool print_debug_info) {
 }
 
 Trajectory* get_trajectory(const NeedleCoordinates state_initial, const NeedleCoordinates state_final, uint64_t movement_start_mks) {
-	const uint64_t movement_duration_mks = 3 * 1000 * 1000; // TODO - calculate this
-	const size_t num_of_frames = 10; // TODO - calculate this
+	const uint64_t movement_duration_mks = MOVEMENT_DURATION_MKS; // TODO - calculate this
+	const size_t num_of_frames = NUM_OF_FRAMES; // TODO - calculate this
 	assert(num_of_frames >= 2);
 
-	const NeedleCoordinates state_0 = *get_state_0(PRINT_DEBUG_INFO);
+	const NeedleCoordinates state_0 = *get_state_0(PRINT_DEBUG_INFO_GLOBAL);
 	// Struct with array of pointers to vectors that describe Table 3D model in state_0.
-	const Table_Model table_in_state_0 = *get_table_in_state_0(PRINT_DEBUG_INFO);
+	const Table_Model table_in_state_0 = *get_table_in_state_0(PRINT_DEBUG_INFO_GLOBAL);
 
 	const gsl_matrix* M_0A = get_transformation_matrix(state_0, state_initial);
 
@@ -471,7 +492,7 @@ Trajectory* get_trajectory(const NeedleCoordinates state_initial, const NeedleCo
 	Table_Model table_in_state_A = *get_transformed_table(M_0A, table_in_state_0);
 
 	// Struct with array of pointers to vectors that describe Sliders 3D model in zero state
-	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS_CM, BASE_ANGLE, PRINT_DEBUG_INFO);
+	Sliders_Model_Nullable sliders_in_state_0 = *get_sliders_in_state_0(BASE_RADIUS_CM, BASE_ANGLE, PRINT_DEBUG_INFO_GLOBAL);
 
 	// First frame is the the identity transformation (Id).
 	// Last frame is the full transformation (M_AB), which brings (state_A) to the (state_B).
@@ -499,20 +520,20 @@ Trajectory* get_trajectory(const NeedleCoordinates state_initial, const NeedleCo
 	}
 
 	Trajectory* trajectory = (Trajectory*)malloc(sizeof(Trajectory));
-	trajectory->table_positions = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
-	trajectory->slider_positions = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
+	trajectory->table_frames = (Table_Model*)malloc(num_of_frames * sizeof(Table_Model));
+	trajectory->slider_frames = (Sliders_Model_Nullable*)malloc(num_of_frames * sizeof(Sliders_Model_Nullable));
 	trajectory->timestamps = (uint64_t*)malloc(num_of_frames * sizeof(uint64_t));
-	trajectory->state_initial = malloc(sizeof(NeedleCoordinates));
-	trajectory->state_final = malloc(sizeof(NeedleCoordinates));
+	trajectory->initial_state = malloc(sizeof(NeedleCoordinates));
+	trajectory->final_state = malloc(sizeof(NeedleCoordinates));
 
-	memcpy(trajectory->table_positions, table_frames, num_of_frames * sizeof(Table_Model));
-	memcpy(trajectory->slider_positions, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
+	memcpy(trajectory->table_frames, table_frames, num_of_frames * sizeof(Table_Model));
+	memcpy(trajectory->slider_frames, slider_frames, num_of_frames * sizeof(Sliders_Model_Nullable));
 	memcpy(trajectory->timestamps, timestamps, num_of_frames * sizeof(uint64_t));
-	memcpy(trajectory->state_initial, &state_initial, sizeof(NeedleCoordinates));
-	memcpy(trajectory->state_final, &state_final, sizeof(NeedleCoordinates));
+	memcpy(trajectory->initial_state, &state_initial, sizeof(NeedleCoordinates));
+	memcpy(trajectory->final_state, &state_final, sizeof(NeedleCoordinates));
 	trajectory->num_of_frames = num_of_frames;
 
-	if (PRINT_DEBUG_INFO) {
+	if (PRINT_DEBUG_INFO_GLOBAL) {
 		print_trajectory(trajectory);
 	}
 
@@ -565,7 +586,7 @@ uint64_t get_current_time_in_mks() {
     return (uint64_t)ts.tv_sec * 1000 * 1000 + (uint64_t)ts.tv_nsec / 1000;
 }
 
-size_t get_next_timestamp_index(uint64_t input_timestamp, size_t num_of_timestamps, uint64_t* timestamps) {
+size_t get_next_timestamp_index(uint64_t input_timestamp, size_t num_of_timestamps, uint64_t* timestamps, bool print_debug_info_local) {
     size_t result_index = SIZE_MAX; // This value indicates failure
 
     if (input_timestamp < timestamps[0]) {
@@ -595,7 +616,7 @@ size_t get_next_timestamp_index(uint64_t input_timestamp, size_t num_of_timestam
         }
     }
 
-    if (PRINT_DEBUG_INFO) {
+    if (PRINT_DEBUG_INFO_GLOBAL && print_debug_info_local) {
         if (result_index != SIZE_MAX) {
             printf("\nSearching for timestamp %llu\nNext timestamp found:   %llu (frame %lu / %lu)\n", input_timestamp, timestamps[result_index], result_index, num_of_timestamps - 1);
         } else {
@@ -606,18 +627,86 @@ size_t get_next_timestamp_index(uint64_t input_timestamp, size_t num_of_timestam
     return result_index;
 }
 
-void compare_with_trajectory(const Trajectory* trajectory, const Sliders_Model_Nullable virtual_sliders, const size_t frame_index){
-	Sliders_Model_Nullable difference = find_slider_difference(trajectory->slider_positions[frame_index], virtual_sliders);
+Sliders_Movement_Recipe compare_with_trajectory(const Trajectory* trajectory, const Sliders_Model_Nullable* sliders_inferred, const size_t frame_index, bool print_debug_info_local){
+	Sliders_Model_Nullable sliders_at_trajectory = trajectory->slider_frames[frame_index];
+	Sliders_Model_Nullable difference = find_slider_difference(sliders_at_trajectory, *sliders_inferred);
+	Sliders_Movement_Recipe sliders_movement_recipe = {
+		.slider_movement_needed[0] = fabs(gsl_vector_get(difference.coordinates[0], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_needed[1] = fabs(gsl_vector_get(difference.coordinates[1], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_needed[2] = fabs(gsl_vector_get(difference.coordinates[2], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_needed[3] = fabs(gsl_vector_get(difference.coordinates[3], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_needed[4] = fabs(gsl_vector_get(difference.coordinates[4], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_needed[5] = fabs(gsl_vector_get(difference.coordinates[5], 2)) >= MIN_SLIDER_STEP_CM, 
+		.slider_movement_direction_is_up[0] = gsl_vector_get(difference.coordinates[0], 2) >= 0.0,
+		.slider_movement_direction_is_up[1] = gsl_vector_get(difference.coordinates[1], 2) >= 0.0,
+		.slider_movement_direction_is_up[2] = gsl_vector_get(difference.coordinates[2], 2) >= 0.0,
+		.slider_movement_direction_is_up[3] = gsl_vector_get(difference.coordinates[3], 2) >= 0.0,
+		.slider_movement_direction_is_up[4] = gsl_vector_get(difference.coordinates[4], 2) >= 0.0,
+		.slider_movement_direction_is_up[5] = gsl_vector_get(difference.coordinates[5], 2) >= 0.0,
+	};
 
-	if (PRINT_DEBUG_INFO) {
-        	printf("\n=== Comparing trajectory and virtual state:");
-		printf("\nSliders for frame (%lu / %lu):\n", frame_index, trajectory->num_of_frames);
-		print_sliders(trajectory->slider_positions[frame_index]);
-        	printf("\nVirtual sliders:\n");
-		print_sliders(virtual_sliders);
-		printf("\nDelta:\n");
+	if (PRINT_DEBUG_INFO_GLOBAL && print_debug_info_local) {
+		printf("\n=== Comparing current sliders and sliders expected for frame (%lu / %lu)", frame_index, trajectory->num_of_frames -  1);
+		printf("\nCurrent sliders (inferred from past inputs to the physical system):\n");
+		print_sliders(*sliders_inferred);
+		printf("\nExpected sliders:\n");
+		print_sliders(sliders_at_trajectory);
+		printf("\nDifference:\n");
 		print_sliders(difference);
-        }
+		print_sliders_movement_recipe(&sliders_movement_recipe);
+	}
+
+	return sliders_movement_recipe;
+}
+
+void mutate_infered_slider_state (Sliders_Model_Nullable* current_sliders, const Sliders_Movement_Recipe sliders_movement_recipe) {
+	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
+		if (sliders_movement_recipe.slider_movement_needed[i]) {
+			if (sliders_movement_recipe.slider_movement_direction_is_up[i]) { 
+				gsl_vector_set(current_sliders->coordinates[i], 2, gsl_vector_get(current_sliders->coordinates[i], 2) + MIN_SLIDER_STEP_CM);
+			} else {
+				gsl_vector_set(current_sliders->coordinates[i], 2, gsl_vector_get(current_sliders->coordinates[i], 2) - MIN_SLIDER_STEP_CM);
+			}
+		} 
+	}
+}
+
+int follow_trajectory(Sliders_Model_Nullable* current_sliders, const Trajectory* trajectory) {
+	const size_t num_of_frames = trajectory->num_of_frames;
+
+	size_t iterations = 50 * 1000;
+	size_t sleep_duration_mks = MOVEMENT_DURATION_MKS / iterations;
+
+	for (size_t i = 0; i <= iterations; i++) {
+		bool print_debug_info_local = (i % PRINT_DEBUG_SUBSELETION_FACTOR) == 0;
+		size_t index_of_the_next_frame = get_next_timestamp_index(get_current_time_in_mks(), num_of_frames, trajectory->timestamps, print_debug_info_local);
+
+		// if next frame found
+		if (index_of_the_next_frame != SIZE_MAX) {
+			Sliders_Movement_Recipe recipe = compare_with_trajectory(trajectory, current_sliders, index_of_the_next_frame, print_debug_info_local);
+			mutate_infered_slider_state(current_sliders, recipe);
+			if (
+					!recipe.slider_movement_needed[0] &&
+					!recipe.slider_movement_needed[1] &&
+					!recipe.slider_movement_needed[2] &&
+					!recipe.slider_movement_needed[3] &&
+					!recipe.slider_movement_needed[4] &&
+					index_of_the_next_frame == num_of_frames - 1
+			   ) {
+				if (PRINT_DEBUG_INFO_GLOBAL) {
+					printf("\n=== Trajectory from (initial_state) to (final_state) followed sucessfully:\n");
+					printf("\nstate_initial:\n");
+					print_needle_coordinates(trajectory->initial_state);
+					printf("\nstate_final:\n");
+					print_needle_coordinates(trajectory->final_state);
+				}
+				return 0;
+			}
+		}
+	usleep(sleep_duration_mks);
+	} 
+
+	return 1;
 }
 
 int main(void) {
@@ -625,18 +714,10 @@ int main(void) {
 	const NeedleCoordinates state_B = {0.0, -1.45, 1.0, 0.20, -0.61, -0.41};
 
 	const Trajectory* trajectory = get_trajectory(state_A, state_B, get_current_time_in_mks() + TRAJECTORY_WAIT_TIME_MKS);
-	const size_t num_of_frames = trajectory->num_of_frames;
-
-	Sliders_Model_Nullable current_sliders = trajectory->slider_positions[0];
-
-	for (size_t i = 0; i < 10; i++) {
-
-		size_t index_of_the_next_frame = get_next_timestamp_index(get_current_time_in_mks(), num_of_frames, trajectory->timestamps);
-		if (index_of_the_next_frame != SIZE_MAX) {
-			(void) compare_with_trajectory(trajectory, current_sliders, index_of_the_next_frame);
-		}
-		usleep(500*1000);
-	}
+	Sliders_Model_Nullable* current_sliders = malloc(sizeof(Sliders_Model_Nullable));
+	current_sliders = &trajectory->slider_frames[0];
+	
+	(void) follow_trajectory(current_sliders, trajectory);
 
 	return 0;
 }

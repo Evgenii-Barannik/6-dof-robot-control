@@ -22,8 +22,8 @@ Slider 5: ( -5.553473,  -4.261330,  20.000000)
 
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163755938132 microseconds
-Trajectory end timestamp:   1726163760938132 microseconds
+Trajectory start timestamp: 1726179577211686 microseconds
+Trajectory end timestamp:   1726179582211686 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,   0.000000)
@@ -35,7 +35,7 @@ Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 
 ==== Frame 0 / 9999
 Trajectory progress: 0.000%
-Timestamp: 1726163755938132 microseconds
+Timestamp: 1726179577211686 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.606969,   1.915111,   3.000000)
@@ -57,7 +57,7 @@ Slider 5: ( -5.553473,  -4.261330,   9.186170)
 
 ==== Frame 5000 / 9999
 Trajectory progress: 50.005%
-Timestamp: 1726163758438382 microseconds
+Timestamp: 1726179579711936 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.606969,   1.915111,   8.407456)
@@ -80,8 +80,8 @@ Slider 5: ( -5.553473,  -4.261330,  14.593626)
 ======== Starting this trajectory:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163755938132 microseconds
-Trajectory end timestamp:   1726163760938132 microseconds
+Trajectory start timestamp: 1726179577211686 microseconds
+Trajectory end timestamp:   1726179582211686 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,   0.000000)
@@ -91,10 +91,10 @@ Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,  10.813830)
 Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 
-Searching for timestamp 1726163756015264 microseconds
-Next timestamp found:   1726163756015639 microseconds (frame 155 / 9999)
+Searching for timestamp 1726179577292758 microseconds
+Next timestamp found:   1726179577293194 microseconds (frame 163 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 155 / 9999
+=== Comparing current sliders and sliders expected for frame 163 / 9999
 Current sliders (inferred from past inputs to our physical system):
 Slider 0: (  0.913683,   6.940114,   9.186170)
 Slider 1: ( -0.913683,   6.940114,   9.186170)
@@ -104,20 +104,20 @@ Slider 4: ( -6.467157,  -2.678784,   9.186170)
 Slider 5: ( -5.553473,  -4.261330,   9.186170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,   9.353801)
-Slider 1: ( -0.913683,   6.940114,   9.353801)
-Slider 2: (  5.553473,  -4.261330,   9.353801)
-Slider 3: (  6.467157,  -2.678784,   9.353801)
-Slider 4: ( -6.467157,  -2.678784,   9.353801)
-Slider 5: ( -5.553473,  -4.261330,   9.353801)
+Slider 0: (  0.913683,   6.940114,   9.362453)
+Slider 1: ( -0.913683,   6.940114,   9.362453)
+Slider 2: (  5.553473,  -4.261330,   9.362453)
+Slider 3: (  6.467157,  -2.678784,   9.362453)
+Slider 4: ( -6.467157,  -2.678784,   9.362453)
+Slider 5: ( -5.553473,  -4.261330,   9.362453)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,   0.167631)
-Slider 1: (  0.000000,   0.000000,   0.167631)
-Slider 2: (  0.000000,   0.000000,   0.167631)
-Slider 3: (  0.000000,   0.000000,   0.167631)
-Slider 4: (  0.000000,   0.000000,   0.167631)
-Slider 5: (  0.000000,   0.000000,   0.167631)
+Slider 0: (  0.000000,   0.000000,   0.176283)
+Slider 1: (  0.000000,   0.000000,   0.176283)
+Slider 2: (  0.000000,   0.000000,   0.176283)
+Slider 3: (  0.000000,   0.000000,   0.176283)
+Slider 4: (  0.000000,   0.000000,   0.176283)
+Slider 5: (  0.000000,   0.000000,   0.176283)
 
 Sliders Movement Recipe:
 Slider 0 movement needed: True
@@ -133,41 +133,41 @@ Slider 3 movement direction is upwards: True
 Slider 4 movement direction is upwards: True
 Slider 5 movement direction is upwards: True
 
-Searching for timestamp 1726163759418994 microseconds
-Next timestamp found:   1726163759419480 microseconds (frame 6962 / 9999)
+Searching for timestamp 1726179580722338 microseconds
+Next timestamp found:   1726179580722537 microseconds (frame 7021 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 6962 / 9999
+=== Comparing current sliders and sliders expected for frame 7021 / 9999
 Current sliders (inferred from past inputs to our physical system):
-Slider 0: (  0.913683,   6.940114,  16.714170)
-Slider 1: ( -0.913683,   6.940114,  16.714170)
-Slider 2: (  5.553473,  -4.261330,  16.714170)
-Slider 3: (  6.467157,  -2.678784,  16.714170)
-Slider 4: ( -6.467157,  -2.678784,  16.714170)
-Slider 5: ( -5.553473,  -4.261330,  16.714170)
+Slider 0: (  0.913683,   6.940114,  16.779170)
+Slider 1: ( -0.913683,   6.940114,  16.779170)
+Slider 2: (  5.553473,  -4.261330,  16.779170)
+Slider 3: (  6.467157,  -2.678784,  16.779170)
+Slider 4: ( -6.467157,  -2.678784,  16.779170)
+Slider 5: ( -5.553473,  -4.261330,  16.779170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,  16.715511)
-Slider 1: ( -0.913683,   6.940114,  16.715511)
-Slider 2: (  5.553473,  -4.261330,  16.715511)
-Slider 3: (  6.467157,  -2.678784,  16.715511)
-Slider 4: ( -6.467157,  -2.678784,  16.715511)
-Slider 5: ( -5.553473,  -4.261330,  16.715511)
+Slider 0: (  0.913683,   6.940114,  16.779319)
+Slider 1: ( -0.913683,   6.940114,  16.779319)
+Slider 2: (  5.553473,  -4.261330,  16.779319)
+Slider 3: (  6.467157,  -2.678784,  16.779319)
+Slider 4: ( -6.467157,  -2.678784,  16.779319)
+Slider 5: ( -5.553473,  -4.261330,  16.779319)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,   0.001341)
-Slider 1: (  0.000000,   0.000000,   0.001341)
-Slider 2: (  0.000000,   0.000000,   0.001341)
-Slider 3: (  0.000000,   0.000000,   0.001341)
-Slider 4: (  0.000000,   0.000000,   0.001341)
-Slider 5: (  0.000000,   0.000000,   0.001341)
+Slider 0: (  0.000000,   0.000000,   0.000149)
+Slider 1: (  0.000000,   0.000000,   0.000149)
+Slider 2: (  0.000000,   0.000000,   0.000149)
+Slider 3: (  0.000000,   0.000000,   0.000149)
+Slider 4: (  0.000000,   0.000000,   0.000149)
+Slider 5: (  0.000000,   0.000000,   0.000149)
 
 Sliders Movement Recipe:
-Slider 0 movement needed: True
-Slider 1 movement needed: True
-Slider 2 movement needed: True
-Slider 3 movement needed: True
-Slider 4 movement needed: True
-Slider 5 movement needed: True
+Slider 0 movement needed: False
+Slider 1 movement needed: False
+Slider 2 movement needed: False
+Slider 3 movement needed: False
+Slider 4 movement needed: False
+Slider 5 movement needed: False
 Slider 0 movement direction is upwards: True
 Slider 1 movement direction is upwards: True
 Slider 2 movement direction is upwards: True
@@ -178,8 +178,8 @@ Slider 5 movement direction is upwards: True
 ======== This trajectory was completed sucessfully:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163755938132 microseconds
-Trajectory end timestamp:   1726163760938132 microseconds
+Trajectory start timestamp: 1726179577211686 microseconds
+Trajectory end timestamp:   1726179582211686 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,   0.000000)
@@ -212,8 +212,8 @@ Slider 5: ( -5.553473,  -4.261330,  20.000000)
 
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163760937965 microseconds
-Trajectory end timestamp:   1726163765937965 microseconds
+Trajectory start timestamp: 1726179582211461 microseconds
+Trajectory end timestamp:   1726179587211461 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,  10.813830)
@@ -225,7 +225,7 @@ Euler angles (roll, pitch, yaw) in rads: (  0.710000,   1.220000,   0.470000)
 
 ==== Frame 0 / 9999
 Trajectory progress: 0.000%
-Timestamp: 1726163760937965 microseconds
+Timestamp: 1726179582211461 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.606969,   1.915111,  13.813830)
@@ -247,7 +247,7 @@ Slider 5: ( -5.553473,  -4.261330,  20.000000)
 
 ==== Frame 5000 / 9999
 Trajectory progress: 50.005%
-Timestamp: 1726163763438215 microseconds
+Timestamp: 1726179584711711 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.753638,   2.888047,   9.307050)
@@ -270,8 +270,8 @@ Slider 5: ( -5.553473,  -4.261330,  14.753737)
 ======== Starting this trajectory:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163760937965 microseconds
-Trajectory end timestamp:   1726163765937965 microseconds
+Trajectory start timestamp: 1726179582211461 microseconds
+Trajectory end timestamp:   1726179587211461 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,  10.813830)
@@ -281,10 +281,10 @@ Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 Linear coordinates (x, y, z) in cm:      ( -2.580000,   2.770000,   3.940000)
 Euler angles (roll, pitch, yaw) in rads: (  0.710000,   1.220000,   0.470000)
 
-Searching for timestamp 1726163761032784 microseconds
-Next timestamp found:   1726163761032974 microseconds (frame 190 / 9999)
+Searching for timestamp 1726179582289614 microseconds
+Next timestamp found:   1726179582289968 microseconds (frame 157 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 190 / 9999
+=== Comparing current sliders and sliders expected for frame 157 / 9999
 Current sliders (inferred from past inputs to our physical system):
 Slider 0: (  0.913683,   6.940114,  19.999170)
 Slider 1: ( -0.913683,   6.940114,  19.999170)
@@ -294,20 +294,20 @@ Slider 4: ( -6.467157,  -2.678784,  19.999170)
 Slider 5: ( -5.553473,  -4.261330,  19.999170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,  19.878195)
-Slider 1: ( -0.913683,   6.940114,  19.930459)
-Slider 2: (  5.553473,  -4.261330,  19.841202)
-Slider 3: (  6.467157,  -2.678784,  19.810097)
-Slider 4: ( -6.467157,  -2.678784,  19.924269)
-Slider 5: ( -5.553473,  -4.261330,  19.823100)
+Slider 0: (  0.913683,   6.940114,  19.899484)
+Slider 1: ( -0.913683,   6.940114,  19.942626)
+Slider 2: (  5.553473,  -4.261330,  19.869079)
+Slider 3: (  6.467157,  -2.678784,  19.843320)
+Slider 4: ( -6.467157,  -2.678784,  19.937741)
+Slider 5: ( -5.553473,  -4.261330,  19.854036)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,  -0.120975)
-Slider 1: (  0.000000,   0.000000,  -0.068711)
-Slider 2: (  0.000000,   0.000000,  -0.157968)
-Slider 3: (  0.000000,   0.000000,  -0.189073)
-Slider 4: (  0.000000,   0.000000,  -0.074901)
-Slider 5: (  0.000000,   0.000000,  -0.176070)
+Slider 0: (  0.000000,   0.000000,  -0.099686)
+Slider 1: (  0.000000,   0.000000,  -0.056544)
+Slider 2: (  0.000000,   0.000000,  -0.130091)
+Slider 3: (  0.000000,   0.000000,  -0.155851)
+Slider 4: (  0.000000,   0.000000,  -0.061429)
+Slider 5: (  0.000000,   0.000000,  -0.145134)
 
 Sliders Movement Recipe:
 Slider 0 movement needed: True
@@ -323,33 +323,33 @@ Slider 3 movement direction is upwards: False
 Slider 4 movement direction is upwards: False
 Slider 5 movement direction is upwards: False
 
-Searching for timestamp 1726163764460654 microseconds
-Next timestamp found:   1726163764460817 microseconds (frame 7045 / 9999)
+Searching for timestamp 1726179585708248 microseconds
+Next timestamp found:   1726179585708310 microseconds (frame 6993 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 7045 / 9999
+=== Comparing current sliders and sliders expected for frame 6993 / 9999
 Current sliders (inferred from past inputs to our physical system):
-Slider 0: (  0.913683,   6.940114,  14.207170)
-Slider 1: ( -0.913683,   6.940114,  16.275170)
-Slider 2: (  5.553473,  -4.261330,  11.843170)
-Slider 3: (  6.467157,  -2.678784,  10.567170)
-Slider 4: ( -6.467157,  -2.678784,  14.068170)
-Slider 5: ( -5.553473,  -4.261330,  12.603170)
+Slider 0: (  0.913683,   6.940114,  14.259170)
+Slider 1: ( -0.913683,   6.940114,  16.313170)
+Slider 2: (  5.553473,  -4.261330,  11.916170)
+Slider 3: (  6.467157,  -2.678784,  10.655170)
+Slider 4: ( -6.467157,  -2.678784,  14.135170)
+Slider 5: ( -5.553473,  -4.261330,  12.655170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,  14.206422)
-Slider 1: ( -0.913683,   6.940114,  16.274550)
-Slider 2: (  5.553473,  -4.261330,  11.842443)
-Slider 3: (  6.467157,  -2.678784,  10.566222)
-Slider 4: ( -6.467157,  -2.678784,  14.067500)
-Slider 5: ( -5.553473,  -4.261330,  12.602529)
+Slider 0: (  0.913683,   6.940114,  14.258269)
+Slider 1: ( -0.913683,   6.940114,  16.312760)
+Slider 2: (  5.553473,  -4.261330,  11.915795)
+Slider 3: (  6.467157,  -2.678784,  10.654705)
+Slider 4: ( -6.467157,  -2.678784,  14.135139)
+Slider 5: ( -5.553473,  -4.261330,  12.655045)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,  -0.000748)
-Slider 1: (  0.000000,   0.000000,  -0.000621)
-Slider 2: (  0.000000,   0.000000,  -0.000727)
-Slider 3: (  0.000000,   0.000000,  -0.000948)
-Slider 4: (  0.000000,   0.000000,  -0.000671)
-Slider 5: (  0.000000,   0.000000,  -0.000641)
+Slider 0: (  0.000000,   0.000000,  -0.000901)
+Slider 1: (  0.000000,   0.000000,  -0.000410)
+Slider 2: (  0.000000,   0.000000,  -0.000375)
+Slider 3: (  0.000000,   0.000000,  -0.000465)
+Slider 4: (  0.000000,   0.000000,  -0.000032)
+Slider 5: (  0.000000,   0.000000,  -0.000125)
 
 Sliders Movement Recipe:
 Slider 0 movement needed: False
@@ -368,8 +368,8 @@ Slider 5 movement direction is upwards: False
 ======== This trajectory was completed sucessfully:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163760937965 microseconds
-Trajectory end timestamp:   1726163765937965 microseconds
+Trajectory start timestamp: 1726179582211461 microseconds
+Trajectory end timestamp:   1726179587211461 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,  10.813830)
@@ -402,8 +402,8 @@ Slider 5: ( -5.553473,  -4.261330,  20.000000)
 
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163765937906 microseconds
-Trajectory end timestamp:   1726163770937906 microseconds
+Trajectory start timestamp: 1726179587211436 microseconds
+Trajectory end timestamp:   1726179592211436 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      ( -2.580000,   2.770000,   3.940000)
@@ -415,7 +415,7 @@ Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 
 ==== Frame 0 / 9999
 Trajectory progress: 0.000%
-Timestamp: 1726163765937906 microseconds
+Timestamp: 1726179587211436 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.090278,   4.070029,   3.641705)
@@ -437,7 +437,7 @@ Slider 5: ( -5.553473,  -4.261330,   9.862372)
 
 ==== Frame 5000 / 9999
 Trajectory progress: 50.005%
-Timestamp: 1726163768438156 microseconds
+Timestamp: 1726179589711686 microseconds
 
 Table coordinates (x, y, z) in cm:
 0: (  1.753650,   2.887805,   9.308097)
@@ -460,8 +460,8 @@ Slider 5: ( -5.553473,  -4.261330,  14.754823)
 ======== Starting this trajectory:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163765937906 microseconds
-Trajectory end timestamp:   1726163770937906 microseconds
+Trajectory start timestamp: 1726179587211436 microseconds
+Trajectory end timestamp:   1726179592211436 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      ( -2.580000,   2.770000,   3.940000)
@@ -471,10 +471,10 @@ Euler angles (roll, pitch, yaw) in rads: (  0.710000,   1.220000,   0.470000)
 Linear coordinates (x, y, z) in cm:      (  0.000000,   0.000000,  10.813830)
 Euler angles (roll, pitch, yaw) in rads: (  0.000000,   0.000000,   0.000000)
 
-Searching for timestamp 1726163766022483 microseconds
-Next timestamp found:   1726163766022914 microseconds (frame 170 / 9999)
+Searching for timestamp 1726179587295091 microseconds
+Next timestamp found:   1726179587295444 microseconds (frame 168 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 170 / 9999
+=== Comparing current sliders and sliders expected for frame 168 / 9999
 Current sliders (inferred from past inputs to our physical system):
 Slider 0: (  0.913683,   6.940114,  11.107170)
 Slider 1: ( -0.913683,   6.940114,  13.844170)
@@ -484,20 +484,20 @@ Slider 4: ( -6.467157,  -2.678784,   9.528170)
 Slider 5: ( -5.553473,  -4.261330,   9.863170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,  11.291993)
-Slider 1: ( -0.913683,   6.940114,  13.995742)
-Slider 2: (  5.553473,  -4.261330,   7.659681)
-Slider 3: (  6.467157,  -2.678784,   5.114926)
-Slider 4: ( -6.467157,  -2.678784,   9.839068)
-Slider 5: ( -5.553473,  -4.261330,  10.006891)
+Slider 0: (  0.913683,   6.940114,  11.289820)
+Slider 1: ( -0.913683,   6.940114,  13.993958)
+Slider 2: (  5.553473,  -4.261330,   7.656435)
+Slider 3: (  6.467157,  -2.678784,   5.110060)
+Slider 4: ( -6.467157,  -2.678784,   9.835459)
+Slider 5: ( -5.553473,  -4.261330,  10.005182)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,   0.184822)
-Slider 1: (  0.000000,   0.000000,   0.151572)
-Slider 2: (  0.000000,   0.000000,   0.277511)
-Slider 3: (  0.000000,   0.000000,   0.424755)
-Slider 4: (  0.000000,   0.000000,   0.310898)
-Slider 5: (  0.000000,   0.000000,   0.143721)
+Slider 0: (  0.000000,   0.000000,   0.182650)
+Slider 1: (  0.000000,   0.000000,   0.149788)
+Slider 2: (  0.000000,   0.000000,   0.274265)
+Slider 3: (  0.000000,   0.000000,   0.419890)
+Slider 4: (  0.000000,   0.000000,   0.307289)
+Slider 5: (  0.000000,   0.000000,   0.142012)
 
 Sliders Movement Recipe:
 Slider 0 movement needed: True
@@ -513,41 +513,41 @@ Slider 3 movement direction is upwards: True
 Slider 4 movement direction is upwards: True
 Slider 5 movement direction is upwards: True
 
-Searching for timestamp 1726163769448779 microseconds
-Next timestamp found:   1726163769449257 microseconds (frame 7022 / 9999)
+Searching for timestamp 1726179590661625 microseconds
+Next timestamp found:   1726179590661781 microseconds (frame 6900 / 9999)
 
-=== Comparing current sliders and sliders expected for frame 7022 / 9999
+=== Comparing current sliders and sliders expected for frame 6900 / 9999
 Current sliders (inferred from past inputs to our physical system):
-Slider 0: (  0.913683,   6.940114,  17.871170)
-Slider 1: ( -0.913683,   6.940114,  18.747170)
-Slider 2: (  5.553473,  -4.261330,  17.064170)
-Slider 3: (  6.467157,  -2.678784,  16.621170)
-Slider 4: ( -6.467157,  -2.678784,  18.285170)
-Slider 5: ( -5.553473,  -4.261330,  16.963170)
+Slider 0: (  0.913683,   6.940114,  17.774170)
+Slider 1: ( -0.913683,   6.940114,  18.687170)
+Slider 2: (  5.553473,  -4.261330,  16.927170)
+Slider 3: (  6.467157,  -2.678784,  16.465170)
+Slider 4: ( -6.467157,  -2.678784,  18.191170)
+Slider 5: ( -5.553473,  -4.261330,  16.831170)
 
 Expected sliders:
-Slider 0: (  0.913683,   6.940114,  17.872234)
-Slider 1: ( -0.913683,   6.940114,  18.747770)
-Slider 2: (  5.553473,  -4.261330,  17.066244)
-Slider 3: (  6.467157,  -2.678784,  16.622732)
-Slider 4: ( -6.467157,  -2.678784,  18.286413)
-Slider 5: ( -5.553473,  -4.261330,  16.964316)
+Slider 0: (  0.913683,   6.940114,  17.774832)
+Slider 1: ( -0.913683,   6.940114,  18.687890)
+Slider 2: (  5.553473,  -4.261330,  16.927390)
+Slider 3: (  6.467157,  -2.678784,  16.465506)
+Slider 4: ( -6.467157,  -2.678784,  18.191589)
+Slider 5: ( -5.553473,  -4.261330,  16.831732)
 
 Difference in sliders:
-Slider 0: (  0.000000,   0.000000,   0.001063)
-Slider 1: (  0.000000,   0.000000,   0.000600)
-Slider 2: (  0.000000,   0.000000,   0.002074)
-Slider 3: (  0.000000,   0.000000,   0.001562)
-Slider 4: (  0.000000,   0.000000,   0.001243)
-Slider 5: (  0.000000,   0.000000,   0.001146)
+Slider 0: (  0.000000,   0.000000,   0.000662)
+Slider 1: (  0.000000,   0.000000,   0.000720)
+Slider 2: (  0.000000,   0.000000,   0.000220)
+Slider 3: (  0.000000,   0.000000,   0.000336)
+Slider 4: (  0.000000,   0.000000,   0.000419)
+Slider 5: (  0.000000,   0.000000,   0.000561)
 
 Sliders Movement Recipe:
-Slider 0 movement needed: True
+Slider 0 movement needed: False
 Slider 1 movement needed: False
-Slider 2 movement needed: True
-Slider 3 movement needed: True
-Slider 4 movement needed: True
-Slider 5 movement needed: True
+Slider 2 movement needed: False
+Slider 3 movement needed: False
+Slider 4 movement needed: False
+Slider 5 movement needed: False
 Slider 0 movement direction is upwards: True
 Slider 1 movement direction is upwards: True
 Slider 2 movement direction is upwards: True
@@ -558,8 +558,8 @@ Slider 5 movement direction is upwards: True
 ======== This trajectory was completed sucessfully:
 ==== Trajectory information:
 Number of frames: 10000
-Trajectory start timestamp: 1726163765937906 microseconds
-Trajectory end timestamp:   1726163770937906 microseconds
+Trajectory start timestamp: 1726179587211436 microseconds
+Trajectory end timestamp:   1726179592211436 microseconds
 
 ==== Needle coordinates for the initial_state:
 Linear coordinates (x, y, z) in cm:      ( -2.580000,   2.770000,   3.940000)

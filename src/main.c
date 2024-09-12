@@ -656,11 +656,21 @@ void mutate_infered_slider_state (Sliders_Model_Nullable* current_sliders, const
 	}
 }
 
+bool trajectory_converged (Sliders_Movement_Recipe recipe, size_t index_of_frame) {
+	return 				
+		!recipe.slider_movement_needed[0] &&
+		!recipe.slider_movement_needed[1] &&
+		!recipe.slider_movement_needed[2] &&
+		!recipe.slider_movement_needed[3] &&
+		!recipe.slider_movement_needed[4] &&
+		index_of_frame == NUM_OF_FRAMES - 1;
+}
+
 int follow_trajectory(Sliders_Model_Nullable* current_sliders, const Trajectory* trajectory) {
 	const size_t num_of_frames = trajectory->num_of_frames;
 	size_t num_of_iterations = 50 * 1000;
 	size_t sleep_duration_mks = MOVEMENT_DURATION_MKS / num_of_iterations;
-	size_t print_interval = (num_of_iterations + NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING - 1) / NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING;
+	size_t debug_print_interval = (num_of_iterations + NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING - 1) / NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING; // This is for debug info printing only.
 
 	if (PRINT_DEBUG_INFO_GLOBAL) {
 		printf("\n======== Starting this trajectory:");
@@ -668,21 +678,15 @@ int follow_trajectory(Sliders_Model_Nullable* current_sliders, const Trajectory*
 	}
 
 	for (size_t i = 0; i <= num_of_iterations; i++) {
-		bool print_debug_info_local = (i % print_interval == 0);
+		bool print_debug_info_local = (i % debug_print_interval == 0);
 		size_t index_of_the_next_frame = get_next_timestamp_index(get_current_time_in_mks(), num_of_frames, trajectory->timestamps, print_debug_info_local);
 
 		// If (index_of_the_next_frame != SIZE_MAX) then next frame was found
 		if (index_of_the_next_frame != SIZE_MAX) {
 			Sliders_Movement_Recipe recipe = compare_with_trajectory(trajectory, current_sliders, index_of_the_next_frame, print_debug_info_local);
 			mutate_infered_slider_state(current_sliders, recipe);
-			if (
-					!recipe.slider_movement_needed[0] &&
-					!recipe.slider_movement_needed[1] &&
-					!recipe.slider_movement_needed[2] &&
-					!recipe.slider_movement_needed[3] &&
-					!recipe.slider_movement_needed[4] &&
-					index_of_the_next_frame == num_of_frames - 1
-			   ) {
+			if (trajectory_converged(recipe, index_of_the_next_frame)) {
+
 				if (PRINT_DEBUG_INFO_GLOBAL) {
 					printf("\n======== This trajectory was completed sucessfully:");
 					print_trajectory(trajectory, false);

@@ -1,3 +1,6 @@
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+cd "$SCRIPT_DIR"
+
 conan install . --output-folder=build --build=missing
 cd build
 meson setup --native-file conan_meson_native.ini .. meson-src
@@ -15,5 +18,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-chmod +x ./build/meson-src/6dof
-./build/meson-src/6dof | tee output.txt  
+chmod +x "$SCRIPT_DIR/build/meson-src/6dof"
+"$SCRIPT_DIR/build/meson-src/6dof" | tee output.txt

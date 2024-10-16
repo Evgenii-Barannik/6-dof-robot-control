@@ -1,6 +1,10 @@
-# 6-dof-robot-control
-This code shows basic math to control a robot with six vertical parallel rails (6 DOF). The robot here differs from a common Stewart platform and has a rather exotic geometry. The Python and C components in this project are independent, they are realizations of the same general idea. Python code has better visualization (see gif below). To build C code, Conan and Meson are used (see `build.sh`).
+# robot-6dof-control
+This project contains code for the robotic 3D printer with 6 degrees of freedom (6 DOF). Robotic printer has 6 sliders (6 actuators) which are used to control robotic printer table position (printer table is shown as a hexagon in the visualization). Each slider is independent and rides along it own vertical rail; all 6 vertical rails are parallel to each other. The geometry described here is different from "Stewart platform" which also has 6 DOF and is different from more commonly used 3 DOF robotic printer. **Roughly speaking this project aims to answer following the question**:
 
-![Python visualization][6dof]
+**Given we know initial (X, Y, Z, roll, yaw, pitch) and desired final state (X, Y, Z, roll, yaw, pitch) of the printer table, how can we move sliders to bring printer table from initial to final state?**
 
-[6dof]: https://github.com/Evgenii-Barannik/6-dof-robot-control/blob/main/6dof.gif
+Suppose that we know geometry and dimensions of our robotic 3D printer. Suppose we also know that any correct state of the robotic printer can be described using 6 coordinates: X, Y, Z, roll, yaw, pitch of the printer table. To be exact those are the coordinates of the end of the needle locagrowing from the center of the printer table; this needle can be seen as line growing from the center of hexagon in the visualization. Futhermore we know that any correct printer table state must have corresponing slider positions. In mechanical sense we will need to change slider positions if we desire to control the printer. Answer to question above is calculating `Trajectory` struct, which is the main computaional result. `Trajectory` struct describes how and when sliders should move to make the described transition. 
+
+Project contains C and Python components:
+* C component contains primary calculations. Code in C is written from the linear algebra up; specifically, GSL-BLASS library is used. Main function contains minimal outline of how `Trajectory` can be used to interact with hardware sliders. 
+* Python component is used for visualization. It contains Jupyter notebook build around C functions called using C FFI. This Jupyter notebook requires `cpython.so` to run, which will be produced upon succesfull running of the build routine. To build C code, Conan and Meson are used (see `build.sh`).

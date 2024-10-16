@@ -21,9 +21,8 @@ const size_t NUM_OF_SLIDERS = 6;
 
 /// CONSTANTS THAT CAN BE CHANGED
 const bool PRINT_DEBUG_INFO_GLOBAL = true;
-const size_t NUM_OF_FRAMES_TO_PRINT_ON_CREATION = 2;  // Must be >= 1
-const size_t NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING = 2; // Must be >= 1
-const size_t NUM_OF_FRAMES = 10 * 1000; // Must be >= 2
+const size_t NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING = 3; // Must be >= 1
+const size_t NUM_OF_FRAMES = 10 * 1000; // Must be >= 3
 const size_t MOVEMENT_DURATION_MKS = 5 * 1000 * 1000;
 const double MIN_SLIDER_STEP_CM = 0.001;
 const double NEEDLE_LENGTH_CM = 3.0;
@@ -126,32 +125,31 @@ Sliders_Model_Nullable get_slider_difference(const Sliders_Model_Nullable slider
     return difference;
 }
 
-void print_trajectory(const Trajectory* trajectory, const bool print_frames) {
-	const size_t num_of_frames = trajectory->num_of_frames;
-	printf("\n==== Trajectory information:");
-	printf("\nNumber of frames: %lu", num_of_frames);
-	printf("\nTrajectory start timestamp: %llu microseconds\n", trajectory->timestamps[0]);
-	printf("Trajectory end timestamp:   %llu microseconds\n", trajectory->timestamps[num_of_frames - 1]);
+void print_trajectory(const Trajectory* trajectory) {
+    const size_t num_of_frames = trajectory->num_of_frames;
+    printf("\n==== Trajectory information:");
+    printf("\nNumber of frames: %lu", num_of_frames);
+    printf("\nTrajectory start timestamp: %llu microseconds\n", trajectory->timestamps[0]);
+    printf("Trajectory end timestamp:   %llu microseconds\n", trajectory->timestamps[num_of_frames - 1]);
 
+    printf("\n==== Needle coordinates for the initial_state:\n");
+    print_needle_coordinates(trajectory->initial_state);
+    printf("\n==== Needle coordinates for the final_state:\n");
+    print_needle_coordinates(trajectory->final_state);
 
-	printf("\n==== Needle coordinates for the initial_state:\n");
-	print_needle_coordinates(trajectory->initial_state);
-	printf("\n==== Needle coordinates for the final_state:\n");
-	print_needle_coordinates(trajectory->final_state);
+    size_t frame_indices_to_print [3] = {0, num_of_frames/2, num_of_frames - 1};
 
-	if (print_frames) {
-		size_t print_interval = (num_of_frames + NUM_OF_FRAMES_TO_PRINT_ON_CREATION - 1) / NUM_OF_FRAMES_TO_PRINT_ON_CREATION;
-		for (size_t i = 0; i < num_of_frames; i+= print_interval) {
-			double progress = (double) i / (double) (num_of_frames - 1);
-			printf("\n==== Frame %lu / %lu\n", i, num_of_frames - 1);
-			printf("Trajectory progress: %.3f%%\n", progress * 100.0);
-			printf("Timestamp: %llu microseconds\n", trajectory->timestamps[i]);
-			printf("\nTable coordinates (x, y, z) in cm:\n");
-			print_table(&trajectory->table_frames[i]);
-			printf("\nSlider coordinates (x, y, z) in cm:\n");
-			print_sliders(&trajectory->sliders_frames[i]);
-		}
-	}
+    for (size_t i = 0; i < 3; i+= 1) {
+	size_t index = frame_indices_to_print[i];
+	double progress = (double) index / (double) (num_of_frames - 1);
+	printf("\n==== Frame %lu / %lu\n", index, num_of_frames - 1);
+	printf("Trajectory progress: %.3f%%\n", progress * 100.0);
+	printf("Timestamp: %llu microseconds\n", trajectory->timestamps[index]);
+	printf("\nTable points coordinates (x, y, z) in cm:\n");
+	print_table(&trajectory->table_frames[index]);
+	printf("\nSliders coordinates (x, y, z) in cm:\n");
+	print_sliders(&trajectory->sliders_frames[index]);
+    }
 }
 
 
@@ -300,7 +298,7 @@ Sliders_Model_Nullable* get_sliders_in_top_state(const double radius, const doub
 
 
 	if (print_debug_info_local) {
-		printf("\n==== Slider coordinates (x, y, z) in cm for (top_state):\n");
+		printf("\n==== Sliders coordinates (x, y, z) in cm for (top_state):\n");
 		print_sliders(sliders);
 	}
 
@@ -355,7 +353,7 @@ Table_Model* get_table_in_top_state(bool print_debug_info_local) {
 	gsl_vector_set(table->vecs[7], 2, table_z - NEEDLE_LENGTH_CM);
 
 	if (print_debug_info_local) {
-		printf("\n==== Table coordinates (x, y, z) in cm for (top_state):\n");
+		printf("\n==== Table points coordinates (x, y, z) in cm for (top_state):\n");
 		print_table(table);
 	}
 
@@ -528,10 +526,6 @@ Trajectory* get_trajectory(const NeedleCoordinates initial_state, const NeedleCo
 	memcpy(trajectory->final_state, &final_state, sizeof(NeedleCoordinates));
 	trajectory->num_of_frames = num_of_frames;
 
-	if (PRINT_DEBUG_INFO_GLOBAL) {
-	    print_trajectory(trajectory, true);
-	}
-
 	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
 	    gsl_vector_free(sliders_in_top_state->vecs[i]);
 	}
@@ -549,6 +543,8 @@ Trajectory* get_trajectory(const NeedleCoordinates initial_state, const NeedleCo
 	}
 	gsl_matrix_free(M_TA);
 	free(top_state);
+
+	printf("\n======== New trajectory created!\n");
 
 	return trajectory;
 }
@@ -659,7 +655,7 @@ size_t get_next_timestamp_index(const uint64_t input_timestamp, const size_t num
             printf("\nSearching for timestamp %llu microseconds\nNext timestamp found:   %llu microseconds (frame %lu / %lu)\n",
 			    input_timestamp, timestamps[result_index], result_index, num_of_timestamps - 1);
         } else {
-            printf("\nSearching for timestamp %llu microseconds\nFAILED to find next timestamp found\n", input_timestamp);
+            printf("\nSearching for timestamp %llu microseconds\nFAILED to find next timestamp\n", input_timestamp);
         }
     }
 
@@ -717,47 +713,58 @@ void mutate_infered_slider_state (Sliders_Model_Nullable* current_sliders, const
 	}
 }
 
-bool trajectory_converged (Sliders_Movement_Recipe recipe, size_t index_of_frame) {
-	return 				
-		!recipe.slider_movement_needed[0] &&
-		!recipe.slider_movement_needed[1] &&
-		!recipe.slider_movement_needed[2] &&
-		!recipe.slider_movement_needed[3] &&
-		!recipe.slider_movement_needed[4] &&
-		index_of_frame == NUM_OF_FRAMES - 1;
+bool trajectory_converged (Sliders_Model_Nullable* current_sliders, Sliders_Model_Nullable* last_sliders_frame) {
+    	for (size_t i = 0; i < NUM_OF_SLIDERS; i++) {
+	    if (current_sliders->vecs[i] != NULL) {
+		double current_slider_z = gsl_vector_get(current_sliders->vecs[i], 2);
+		double last_frame_slider_z = gsl_vector_get(last_sliders_frame->vecs[i], 2);
+		if (fabs(current_slider_z - last_frame_slider_z) >= MIN_SLIDER_STEP_CM) {
+		    return false;
+		}
+	    }
+	}
+	return true;
 }
 
+
 int follow_trajectory(Sliders_Model_Nullable* current_sliders, const Trajectory* trajectory) {
-	const size_t num_of_frames = trajectory->num_of_frames;
-	size_t num_of_iterations = 50 * 1000;
-	size_t sleep_duration_mks = MOVEMENT_DURATION_MKS / num_of_iterations;
-	size_t debug_print_interval = (num_of_iterations + NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING - 1) / NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING; // This is for debug info printing only.
+    const size_t num_of_frames = trajectory->num_of_frames;
+    Sliders_Model_Nullable last_sliders_frame = trajectory->sliders_frames[num_of_frames-1];
+    size_t num_of_iterations = 50 * 1000;
+    size_t sleep_duration_mks = MOVEMENT_DURATION_MKS / num_of_iterations;
+
+    size_t debug_print_interval = (num_of_iterations + NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING - 1) / NUM_OF_FRAMES_TO_PRINT_ON_FOLLOWING; // This is for debug info printing only.
 
 	if (PRINT_DEBUG_INFO_GLOBAL) {
 		printf("\n======== Starting this trajectory:");
-		print_trajectory(trajectory, false);
+		print_trajectory(trajectory);
 	}
 
+	printf("\n==== Attempting to follow trajectory\n");
 	for (size_t i = 0; i <= num_of_iterations; i++) {
 		bool print_debug_info_local = (i % debug_print_interval == 0);
-		size_t index_of_the_next_frame = get_next_timestamp_index(get_current_time_in_mks(), num_of_frames, trajectory->timestamps, print_debug_info_local);
+		size_t index_for_the_next_frame_infered = get_next_timestamp_index(get_current_time_in_mks(), num_of_frames, trajectory->timestamps, print_debug_info_local);
 
-		// If (index_of_the_next_frame != SIZE_MAX) then next frame was found
-		if (index_of_the_next_frame != SIZE_MAX) {
-			Sliders_Movement_Recipe recipe = compare_with_trajectory(trajectory, current_sliders, index_of_the_next_frame, print_debug_info_local);
-			mutate_infered_slider_state(current_sliders, recipe);
-			if (trajectory_converged(recipe, index_of_the_next_frame)) {
+		// If the next frame was found:
+		if (index_for_the_next_frame_infered != SIZE_MAX) {
+		    Sliders_Movement_Recipe recipe = compare_with_trajectory(trajectory, current_sliders, index_for_the_next_frame_infered, print_debug_info_local);
+		    mutate_infered_slider_state(current_sliders, recipe);
 
-				if (PRINT_DEBUG_INFO_GLOBAL) {
-					printf("\n======== This trajectory was completed sucessfully:");
-					print_trajectory(trajectory, false);
-				}
-				return 0;
+		// If we are past the last frame:
+		} else {
+		    if (trajectory_converged(current_sliders, &last_sliders_frame)) {
+			if (PRINT_DEBUG_INFO_GLOBAL) {
+			    printf("\n======== Trajectory was completed sucessfully!");
 			}
+			return 0;
+		    } else {
+			printf("\n======== FAILED to follow trajectory (tho trajectory was calculated sucessfully)");
+			return 1;
+		    }
 		}
 		usleep(sleep_duration_mks);
-	} 
-	printf("\n======== FAILED to complete trajectory");
+	}
+	printf("\n======== FAILED to follow trajectory (out of iterations)");
 	return 1;
 }
 
@@ -775,18 +782,17 @@ Sliders_Model_Nullable* deepcopy_sliders(const Sliders_Model_Nullable* original)
 }
 
 int main(void) {
-	// Hardware interaction simulation
+	// Minimal outline example of how `Trajectory` can be used to interact with hardware sliders.
 
-	// Moving to the (top_state). This is the state with all sliders at top.
+	// First we move to the (top_state). This is the state with all sliders at top; this state is used for calibration.
 	const NeedleCoordinates initial_state = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};	// Assumed initial state
-	const size_t num_of_frames = NUM_OF_FRAMES; // TODO? - calculate this
+	const size_t num_of_frames = NUM_OF_FRAMES; 
 	const NeedleCoordinates top_state = *get_top_state(false);
 	Trajectory* trajectory_0 = get_trajectory(initial_state, top_state, get_current_time_in_mks() + 100, num_of_frames);
 	assert(trajectory_0 != NULL); // Check if trajectory was created successfully
 	Sliders_Model_Nullable* sliders = deepcopy_sliders(&trajectory_0->sliders_frames[0]); // Sliders represent history of inputs to the physical system, do not throw them away. 
 	const int status_code_0 = follow_trajectory(sliders, trajectory_0);
 	assert(status_code_0 == 0); // Check if trajectory was followed successfully
-	free_trajectory(trajectory_0);
 
 	// Moving from the (top_state) to the (A_state):
 	const NeedleCoordinates A_state = {-2.58, 2.77, 3.94, 0.71, 1.22, 0.47};
@@ -794,13 +800,15 @@ int main(void) {
 	assert(trajectory_1 != NULL);
 	const int status_code_1 = follow_trajectory(sliders, trajectory_1);
 	assert(status_code_1 == 0);
-	free_trajectory(trajectory_1);
 
 	// Moving back to the (top_state):
 	Trajectory* trajectory_2 = get_trajectory(A_state, top_state, get_current_time_in_mks() + 100, num_of_frames);
 	assert(trajectory_2 != NULL);
 	const int status_code_2 = follow_trajectory(sliders, trajectory_2);
 	assert(status_code_2 == 0);
+
+	free_trajectory(trajectory_0);
+	free_trajectory(trajectory_1);
 	free_trajectory(trajectory_2);
 
 	printf("\n======== Success");
